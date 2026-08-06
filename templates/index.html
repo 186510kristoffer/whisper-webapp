@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Transkribering</title>
+    <!-- Kobler til CSS-filen -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Lyd til Tekst</h1>
+
+        <!-- Opptaksknapper -->
+        <div class="section">
+            <p>Spill inn lyd direkte fra mikrofonen din:</p>
+            <button id="startOpptak">Start opptak</button>
+            <button id="stoppOpptak" class="stop" disabled> Stopp & Transkriber</button>
+        </div>
+
+        <!-- Språkvalg -->
+        <div class="section" style="margin-bottom: 15px;">
+            <label for="spraakValg"><b>Velg språk:</b></label>
+            <select id="spraakValg">
+                <option value="no" selected>Norsk</option>
+                <option value="en">Engelsk</option>
+                <option value="sv">Svensk</option>
+                <option value="da">Dansk</option>
+                <option value="de">Tysk</option>
+            </select>
+        </div>
+
+        <hr>
+
+        <!-- Vanlig filopplasting -->
+        <form id="filSkjema">
+            <p>Eller last opp en eksisterende fil:</p>
+            <input type="file" id="lydFil" accept="audio/*,video/*" required>
+            <button type="submit">Transkriber fil</button>
+        </form>
+
+        <!-- Status og resultat -->
+        <div id="status"></div>
+        <div id="resultat">Transkripsjonen dukker opp her...</div>
+    </div>
+
+    <!-- Kobler til JavaScript-filen -->
+    <script src="/static/script.js"></script>
+</body>
+</html>
