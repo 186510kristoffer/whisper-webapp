@@ -48,3 +48,21 @@ input[type="file"] {
     color: #333;
 }
 hr { border: 0; border-top: 1px solid #eee; margin: 25px 0; }
+
+.server-status {
+    display: flex;
+    align-items: center;
+    font-family: sans-serif;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+#status-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%; /* Dette gjør den helt rund */
+    background-color: gray; /* Starter som grå før JavaScriptet sjekker statusen */
+    margin-left: 10px;
+    transition: background-color 0.3s ease; /* Gir en myk overgang når fargen endres */
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+}

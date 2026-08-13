@@ -8,8 +8,15 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
+
     <div class="container">
         <h1>Lyd til Tekst</h1>
+
+        <div class="server-status">
+            <span>AI-server status:</span>
+            <div id="status-indicator" title="Sjekker status..."></div>
+        </div>
 
         <!-- Opptaksknapper -->
         <div class="section">
@@ -20,7 +27,7 @@
 
         <!-- Språkvalg -->
         <div class="section" style="margin-bottom: 15px;">
-            <label for="spraakValg"><b>Velg språk:</b></label>
+            <label for="spraakValg"><b>Velg språk for teksting:</b></label>
             <select id="spraakValg">
                 <option value="no" selected>Norsk</option>
                 <option value="en">Engelsk</option>

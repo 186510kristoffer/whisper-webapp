@@ -1,3 +1,5 @@
+from urllib import response
+
 from fastapi import FastAPI, UploadFile, File, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
@@ -10,6 +12,7 @@ import subprocess
 from sqlalchemy.orm import Session
 from database import init_db, SessionLocal, Transkripsjon
 from dotenv import load_dotenv
+import time
 
 
 app = FastAPI()
@@ -21,6 +24,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory= "templates")
 
 WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:8080/inference")
+WHISPER_BASE_URL = os.getenv("WHISPER_BASE_URL", "http://127.0.0.1:8080/")
 
 telefon_lock = asyncio.Lock()
 
@@ -58,6 +62,17 @@ async def hjemmeside(request: Request):
     """
     return templates.TemplateResponse(request=request, name="index.html")
 
+@app.get("/status")
+async def sjekk_status():
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response = await client.get("WHISPER_BASE_URL")
+            if response.status_code <500:
+                return {"status": "online"}
+    except Exception:
+        pass
+    return {"status":"offline"}
+
 @app.post("/transkriber")
 async def transkriber_lyd(
         file: UploadFile = File(...),
@@ -88,13 +103,22 @@ async def transkriber_lyd(
         async with telefon_lock:
             async with httpx.AsyncClient(timeout=300.0) as client:
 
+                start_tid=time.time()
                 response = await client.post(WHISPER_URL, files=files, data=data)
+                slutt_tid=time.time()
+                brukt_tid=round(slutt_tid - start_tid, 2)
+
                 response.raise_for_status()
                 response_json = response.json()
 
                 transkribert_tekst = response_json.get("text", str(response_json))
 
-                ny_post = Transkripsjon(sprak=language, tekst=transkribert_tekst)
+                ny_post = Transkripsjon(
+                    sprak=language,
+                    tekst=transkribert_tekst,
+                    tid_brukt_sek=brukt_tid
+                )
+
                 db.add(ny_post)
                 db.commit()
                 db.refresh(ny_post)

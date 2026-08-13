@@ -30,7 +30,7 @@ startBtn.addEventListener('click', async () => {
         mediaRecorder.start();
         startBtn.disabled = true;
         stoppBtn.disabled = false;
-        statusDiv.innerText = "🔴 Tar opp... Snakk i mikrofonen!";
+        statusDiv.innerText = "Tar opp... Snakk i mikrofonen!";
         resultatDiv.innerText = "";
     } catch (err) {
         statusDiv.innerText = "Feil: Fikk ikke tilgang til mikrofonen. Sjekk at nettleseren har tillatelse.";
@@ -65,6 +65,7 @@ async function sendTilBackend(filData, filNavn) {
     formData.append('language', valgtSpraak); // Sender f.eks. 'no' eller 'en'
 
     try {
+        const startTid = performance.now();
         const response = await fetch('/transkriber', {
             method: 'POST',
             body: formData
@@ -72,14 +73,36 @@ async function sendTilBackend(filData, filNavn) {
 
         const data = await response.json();
 
+        const sluttTid= performance.now();
+        const tidBrukt = ((sluttTid - startTid)/1000).toFixed(1);
         if (data.error) {
             resultatDiv.innerText = "Feil fra server: " + data.error;
         } else {
-            resultatDiv.innerText = data.text || JSON.stringify(data, null, 2);
+            let utskrift = data.text || JSON.stringify(data, null, 2);
+            resultatDiv.innerText = utskrift;
         }
-        statusDiv.innerText = "Ferdig!";
+        statusDiv.innerText = `Ferdig! Brukte ${tidBrukt} sekunder.`;
     } catch (err) {
         statusDiv.innerText = "Nettverksfeil. Fikk ikke kontakt med serveren.";
         resultatDiv.innerText = String(err);
     }
 }
+
+async function sjekkServerStatus(){
+    try{
+        let res= await fetch('/status');
+        let data = await res.json();
+        let prikk = document.getElementById('status-indicator');
+
+        if (data.status==='online'){
+            prikk.style.backgroundColor = 'green';
+            prikk.title='AI-serveren er Online';
+        }else{
+            prikk.style.backgroundColor = 'red';
+            prikk.title='Ingen kontakt med AI-server';
+        }
+    }catch (e){
+        console.log('Kunne ikke sjekke status')
+    }
+}
+setInterval(sjekkServerStatus, 5000);

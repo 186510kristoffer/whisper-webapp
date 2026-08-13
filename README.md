@@ -1,16 +1,14 @@
-Whisper Web App
-A lightweight web application built with Python and FastAPI. It allows users to record audio directly from their browser and receive text transcriptions.
+# Whisper Web App
 
-The backend automatically formats the audio using FFmpeg and sends it to a self-hosted Whisper API endpoint. All transcriptions are saved locally in an SQLite database for easy access to the transcription history.
+A lightweight, self-hosted web application built with Python and FastAPI. It allows users to record audio directly from their browser or upload existing files and receive fast text transcriptions powered by a local Whisper AI backend.
 
-Key Features:
+The backend automatically formats incoming audio using FFmpeg and proxies it to a dedicated, hardware-accelerated Whisper server. All transcriptions, including language settings, text, and processing duration, are securely logged via SQLAlchemy.
 
- - Browser-based Recording: Record audio directly from mobile or desktop browsers.
+## Key Features
 
- - FastAPI Backend: Fast and asynchronous handling of requests.
-
- - Whisper AI Integration: Forwards audio to a dedicated Whisper server for fast inference.
-
- - SQLite Database: Automatically logs the language and text of every transcription using SQLAlchemy.
-
- - Auto-formatting: Uses FFmpeg to ensure the audio is always converted to 16kHz mono WAV before inference.
+- **Browser-based Recording & Uploads:** Record audio directly from mobile or desktop browsers, or upload standard audio/video files.
+- **FastAPI Backend:** Fast and asynchronous handling of requests.
+- **Whisper AI Integration:** Forwards optimized audio to a self-hosted `whisper.cpp` server running on dedicated hardware (e.g., via USB network interface).
+- **Flexible Database Support (SQLite / MariaDB):** Automatically logs transcription history using SQLAlchemy, supporting SQLite for local development and MariaDB for production environments via environment variables (`.env`).
+- **Performance Tracking:** Measures and stores the exact processing time for each transcription.
+- **Auto-formatting:** Uses FFmpeg to ensure audio is dynamically converted to 16kHz mono WAV before inference.
