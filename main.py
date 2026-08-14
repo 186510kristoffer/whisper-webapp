@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from database import init_db, SessionLocal, Transkripsjon
-from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, opprett_jobb
+from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, forbered_og_start_jobb
+
 load_dotenv()
 
 
