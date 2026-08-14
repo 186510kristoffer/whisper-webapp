@@ -1,140 +1,107 @@
-from urllib import response
+import os
+import uuid
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, Request, Form, Depends
+from fastapi import FastAPI, UploadFile, File, Request, Form, Depends, BackgroundTasks, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-import httpx
-import asyncio
-import os
-import tempfile
-import subprocess
 from sqlalchemy.orm import Session
-from database import init_db, SessionLocal, Transkripsjon
 from dotenv import load_dotenv
-import time
-
-
-app = FastAPI()
-
+from database import init_db, SessionLocal, Transkripsjon
+from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, opprett_jobb
 load_dotenv()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-templates = Jinja2Templates(directory= "templates")
+MAX_FILESIZE = 50 * 1024 * 1024
+TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4"]
 
-WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:8080/inference")
-WHISPER_BASE_URL = os.getenv("WHISPER_BASE_URL", "http://127.0.0.1:8080/")
 
-telefon_lock = asyncio.Lock()
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Kjøres én gang når serveren starter opp.
+    Initialiserer databasen og gjør alt klart før vi tar imot trafikk.
+    """
     init_db()
+    yield
+
+app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
 
 def get_db():
-    db=SessionLocal()
+    """
+    Henter en aktiv database-sesjon per nettverkskall, 
+    og sørger for at den lukkes pent når kallet er ferdig.
+    """
+    db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-def konverter_til_wav(input_sti: str, output_sti:str):
-    """
-    Kaller FFmpeg for å tvinge lyden over i 16kHz, 16-bit mono WAV.
-    Kreves av whisper.cpp.
-    """
-    kommando = [ "ffmpeg",
-                 "-y",                      # Overskriv output-filen hvis den allerede finnes
-                 "-i", input_sti,           # Filen brukeren lastet opp
-                 "-ar", "16000",            # Tving sample rate til 16 kHz
-                 "-ac", "1",                # Tving mono (1 lydkanal)
-                 "-c:a", "pcm_s16le",       # Tving 16-bit lydformat
-                 output_sti                 # Den ferdige WAV-filen
-    ]
 
-    subprocess.run(kommando, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 @app.get("/", response_class=HTMLResponse)
 async def hjemmeside(request: Request):
     """
-    Laster inn selve nettsiden når du går til adressen i nettleseren.
-    Tilsvarende @GetMapping fra java spring controller
+    Laster inn og returnerer index.html
+    når brukeren går til rotadressen (/).
     """
     return templates.TemplateResponse(request=request, name="index.html")
 
+
 @app.get("/status")
 async def sjekk_status():
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            response = await client.get("WHISPER_BASE_URL")
-            if response.status_code <500:
-                return {"status": "online"}
-    except Exception:
-        pass
-    return {"status":"offline"}
+    """
+    Pinger whisper-serveren på telefonen for å se om den er våken.
+    Returnerer "online" hvis den svarer, ellers "offline".
+    """
+    er_online = await sjekk_server_status()
+    if er_online:
+        return {"status": "online"}
+    return {"status": "offline"}
+
 
 @app.post("/transkriber")
-async def transkriber_lyd(
+async def motta_lydfil(
+        background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         language: str = Form("no"),
-        db: Session = Depends(get_db)
 ):
     """
-    Dette endepunktet tar imot lydfilen fra nettsiden,
-    og sender den umiddelbart videre til whipser serveren
+    Validerer innkommende HTTP-forespørsel (størrelse/type),
+    og delegerer filhåndteringen og jobben til service-laget.
     """
+    if file.content_type not in TILLATTE_TYPER:
+        raise HTTPException(status_code=400, detail="Ugyldig filtype.")
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_inn:
-        temp_inn.write(await file.read())
-        temp_inn_sti = temp_inn.name
+    innhold = await file.read()
+    if len(innhold) > MAX_FILESIZE:
+        raise HTTPException(status_code=413, detail="Filen er for stor, max 50MB.")
 
-    temp_ut_sti = temp_inn_sti+".wav"
+    jobb_id = forbered_og_start_jobb(innhold, file.filename, language, background_tasks)
 
-    try:
-        konverter_til_wav(temp_inn_sti, temp_ut_sti)
+    return {"job_id": jobb_id, "status": "jobber"}
 
-        with open(temp_ut_sti, "rb") as f:
-            wav_data = f.read()
 
-        files = {'file': ("lyd.wav", wav_data, "audio/wav")}
+@app.get("/jobb/{jobb_id}")
+async def hent_jobbstatus(jobb_id: str):
+    """
+    Lar frontend-en (JavaScript) spørre om hvordan en spesifikk jobb går.
+    Returnerer tekst hvis den er ferdig, eller status "jobber" / "feil".
+    """
+    status = hent_jobb(jobb_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Fant ikke jobben.")
+    return status
 
-        data = {'language': language}
-
-        async with telefon_lock:
-            async with httpx.AsyncClient(timeout=300.0) as client:
-
-                start_tid=time.time()
-                response = await client.post(WHISPER_URL, files=files, data=data)
-                slutt_tid=time.time()
-                brukt_tid=round(slutt_tid - start_tid, 2)
-
-                response.raise_for_status()
-                response_json = response.json()
-
-                transkribert_tekst = response_json.get("text", str(response_json))
-
-                ny_post = Transkripsjon(
-                    sprak=language,
-                    tekst=transkribert_tekst,
-                    tid_brukt_sek=brukt_tid
-                )
-
-                db.add(ny_post)
-                db.commit()
-                db.refresh(ny_post)
-
-                return response_json
-
-    except Exception as e:
-        return {"error": f"Konvertering eller sending feilet: {str(e)}"}
-
-    finally:
-        if os.path.exists(temp_inn_sti):
-            os.remove(temp_inn_sti)
-        if os.path.exists(temp_ut_sti):
-            os.remove(temp_ut_sti)
 
 @app.get("/historikk")
 async def hent_historikk(db: Session = Depends(get_db)):
-    poster = db.query(Transkripsjon).order_by(Transkripsjon.tidspunkt.desc()).all()
-    return poster
+    """
+    Henter ut en liste over alle tidligere transkripsjoner fra databasen, 
+    sortert med den nyeste først.
+    """
+    return db.query(Transkripsjon).order_by(Transkripsjon.tidspunkt.desc()).all()
