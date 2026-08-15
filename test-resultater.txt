@@ -1,14 +1,51 @@
-tester å bruke ulikt antall kjerner i cpu.
-whisper serveren har 8 kjerner i cpu, og ingen gpu.
+tester å bruke ulike antall kjerner i cpu.
+whisper serveren har 8 kjerner i cpu-en, og ingen gpu.
 
 bruker samme 16 sek lydklipp for alle:
 Video Project 3.m4a
 
 
-RESULTATER:
-1 kjerne = Brukte 142.71 sekunder.
+
+TEST 1 RESULTATER: (testet i kronologisk rekkefølge)
+
+1 kjerne:
+Tid brukt (backend): 145.17 s
+Tid brukt (frontend): 147.2 s
 
 
+2 kjerner: 
+Tid brukt (backend): 134.24 s
+Tid brukt (frontend): 137.1 s
 
 
+3 kjerner:
+Tid brukt (backend): 135.6 s
+Tid brukt (frontend): 138.0 s
 
+
+4 kjerner:
+Tid brukt (backend): 136.5 s
+Tid brukt (frontend): 137.8 s
+
+
+5 kjerner:
+Tid brukt (backend): 142.6 s
+Tid brukt (frontend): 143.8 s
+
+
+6 kjerner:
+Tid brukt (backend): 143.86 s
+Tid brukt (frontend): 144.2 s
+
+
+7 kjerner:
+Tid brukt (backend): 143.97 s
+Tid brukt (frontend): 147.2 s
+
+
+8 kjerner:
+Ferdig. Tid brukt (backend): 141.83 s
+Tid brukt (frontend): 144.1 s
+
+
+TEST 2 RESULTATER:
