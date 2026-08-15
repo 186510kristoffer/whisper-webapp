@@ -31,10 +31,9 @@ function startStoppeklokke() {
     tidsbrukDiv.style.display = 'block';
     startTidspunkt = Date.now();
 
-
     tidtaker = setInterval(() => {
         const sekunderBrukt = ((Date.now() - startTidspunkt) / 1000).toFixed(1);
-        tidsbrukDiv.innerText = ` AI jobber... Tid gått: ${sekunderBrukt} s`;
+        tidsbrukDiv.innerText = `AI jobber... Tid gått: ${sekunderBrukt} s`;
     }, 100);
 }
 
@@ -43,8 +42,6 @@ function stoppStoppeklokke(endeligTidFraBackend) {
     tidsbrukDiv.classList.add('ferdig');
     tidsbrukDiv.innerText = `Ferdig! Nøyaktig tid brukt (backend): ${endeligTidFraBackend} s`;
 }
-
-// -------------------------------------------
 
 
 // 1. Håndter direkte opptak
@@ -97,13 +94,20 @@ filSkjema.addEventListener('submit', async (e) => {
     const fil = document.getElementById('lydFil').files[0];
     if (!fil) return;
 
+    // 1. Validering av filstørrelse
     if (fil.size > MAX_FILESIZE) {
         statusDiv.innerText = "Feil: Filen er for stor! Maks 50 MB tillatt.";
-        return;
+        return; // Stopper prosessen umiddelbart
+    }
+
+    // 2. Validering av filtype (Fail Fast i frontend)
+    if (!TILLATTE_TYPER.includes(fil.type) && !fil.type.startsWith("audio/") && !fil.type.startsWith("video/")) {
+        statusDiv.innerText = "Feil: Ugyldig filtype. Vennligst velg en godkjent lyd- eller videofil.";
+        return; // Stopper prosessen umiddelbart
     }
 
     settLasterTilstand(true); // Lås alle inputfelter
-    startStoppeklokke();      // Start den kule telleren
+    startStoppeklokke();      // Start telleren
     statusDiv.innerText = "Sender fil og venter på server...";
     resultatDiv.innerText = "";
 

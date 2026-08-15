@@ -1,0 +1,14 @@
+tester å bruke ulikt antall kjerner i cpu.
+whisper serveren har 8 kjerner i cpu, og ingen gpu.
+
+bruker samme 16 sek lydklipp for alle:
+Video Project 3.m4a
+
+
+RESULTATER:
+1 kjerne = Brukte 142.71 sekunder.
+
+
+
+
+
