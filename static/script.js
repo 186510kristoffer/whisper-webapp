@@ -39,8 +39,9 @@ function startStoppeklokke() {
 
 function stoppStoppeklokke(endeligTidFraBackend) {
     clearInterval(tidtaker);
+    const totalFrontendTid = ((Date.now() - startTidspunkt) / 1000).toFixed(1);
     tidsbrukDiv.classList.add('ferdig');
-    tidsbrukDiv.innerText = `Ferdig! Nøyaktig tid brukt (backend): ${endeligTidFraBackend} s`;
+    tidsbrukDiv.innerText = `Ferdig. Tid brukt (backend): ${endeligTidFraBackend} s\n Tid brukt (frontend): ${totalFrontendTid} s`;
 }
 
 
@@ -153,7 +154,7 @@ async function sjekkJobbStatus(jobId) {
             stoppStoppeklokke(data.tid_brukt);
             settLasterTilstand(false); // Åpne knapper igjen
             statusDiv.innerText = "Transkribering fullført!";
-            resultatDiv.innerText = data.tekst;
+            resultatDiv.innerText = data.tekst.replace(/\n/g, ' ');
         } else if (data.status === "feil") {
             clearInterval(tidtaker);
             settLasterTilstand(false);
