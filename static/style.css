@@ -1,7 +1,7 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f9;
-    max-width: 600px;
+    max-width: 900px;
     margin: 50px auto;
     padding: 20px;
 }
@@ -11,6 +11,18 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
+
+#tidsbruk {
+    font-size: 18px;
+    font-weight: bold;
+    color: #e67e22;
+    margin-top: 15px;
+    display: none;
+}
+#tidsbruk.ferdig {
+    color: #27ae60;
+}
+
 h1 { color: #2c3e50; }
 .section { margin-bottom: 20px; }
 button {
