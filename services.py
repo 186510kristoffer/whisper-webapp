@@ -9,12 +9,17 @@ import json
 import asyncio
 import subprocess
 
+
+
 WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:8080/inference")
 WHISPER_BASE_URL = os.getenv("WHISPER_BASE_URL", "http://127.0.0.1:8080/")
 
 telefon_lock = asyncio.Lock()
 TILSTANDS_FIL = "lading_aktiv"
 jobber = {}
+siste_jobb_tid = 0.0
+
+
 
 
 async def sjekk_server_status() -> bool:
@@ -30,6 +35,8 @@ async def sjekk_server_status() -> bool:
     except Exception:
         pass
     return False
+
+
 
 
 def forbered_og_start_jobb(
@@ -66,12 +73,17 @@ def forbered_og_start_jobb(
     return jobb_id
 
 
+
+
 def hent_jobb(jobb_id: str) -> dict:
     """
     Slår opp og returnerer status og eventuelt resultat for en spesifikk jobb-ID.
     Returnerer None hvis jobben ikke finnes i minnet.
     """
     return jobber.get(jobb_id)
+
+
+
 
 
 def lagre_transkripsjon_i_db(
@@ -105,6 +117,9 @@ def lagre_transkripsjon_i_db(
         db.close()
 
 
+
+
+
 def konverter_til_wav(input_sti: str, output_sti: str):
     """
     Kaller FFmpeg som en underprosess for å tvinge lydfilen over til
@@ -117,72 +132,109 @@ def konverter_til_wav(input_sti: str, output_sti: str):
     subprocess.run(kommando, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 
-async def prosesser_lyd_i_bakgrunn(
-    jobb_id: str,
-    temp_inn_sti: str,
-    language: str,
-    modell: str,
-    kjerner: int,
-    fil_str_mb: float
-):
-    """
-    Orkestrerer hele transkriberingsflyten: Konverterer lyd, låser ressurstilgang,
-    sender data til AI-serveren, lagrer i databasen og rydder opp filer etterpå.
-    Oppdaterer status i den globale jobber-ordboken underveis.
-    """
+
+
+
+async def avslutt_server_etter_inaktivitet():
+    """Venter i 2 minutter. Hvis ingen ny jobb har startet, drepes whisper-server."""
+    await asyncio.sleep(120)
+
+    if time.time() - siste_jobb_tid >= 115 and not telefon_lock.locked():
+        print("[Auto-opprydding] Inaktivitet oppdaget. Skrur av whisper-server på telefonen.")
+        try:
+            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "root@172.16.42.1", "pkill whisper-server"]
+            await asyncio.create_subprocess_exec(*ssh_cmd, stdout=asyncio.subprocess.DEVNULL,
+                                                 stderr=asyncio.subprocess.DEVNULL)
+        except Exception as e:
+            print(f"[Auto-opprydding] Klarte ikke drepe server: {e}")
+
+
+
+
+
+async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
+    """Håndterer strøm, nettverk og oppstart av Whisper via SSH."""
+    jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
+    proc = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
+                                                stderr=asyncio.subprocess.PIPE)
+    await proc.communicate()
+    await asyncio.sleep(3)
+
+    jobber[jobb_id] = {"status": "jobber",
+                       "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
+    modell_sti = f"/home/user/whisper.cpp/models/ggml-{modell}.bin"
+    ssh_start = [
+        "ssh", "-o", "ConnectTimeout=5", "root@172.16.42.1",
+        f"pkill whisper-server; nohup /home/user/whisper.cpp/whisper-server -m {modell_sti} -t {kjerner} --port 8080 > /dev/null 2>&1 &"
+    ]
+    await asyncio.create_subprocess_exec(*ssh_start)
+    await asyncio.sleep(8)
+
+
+
+
+
+async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, language: str):
+    """Sender den ferdige WAV-filen til Whisper API-et og returnerer responsen og tidsbruken."""
+    jobber[jobb_id] = {"status": "jobber", "melding": "Transkriberer teksten! Sitter og venter på svar..."}
+
+    with open(wav_sti, "rb") as f:
+        wav_data = f.read()
+
+    files_payload = {'file': ("lyd.wav", wav_data, "audio/wav")}
+    data_payload = {'language': language}
+
+    timeout = httpx.Timeout(3600.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        start_tid = time.time()
+        response = await client.post(WHISPER_URL, files=files_payload, data=data_payload)
+        slutt_tid = time.time()
+
+    brukt_tid = round(slutt_tid - start_tid, 2)
+    return response, brukt_tid
+
+
+
+
+
+async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str, language: str, modell: str,
+                                   kjerner: int, fil_str_mb: float):
+    global siste_jobb_tid
     temp_ut_sti = temp_inn_sti + ".wav"
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "./start-oneplus.sh",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        await proc.communicate()
-        await asyncio.sleep(3)
-
-        konverter_til_wav(temp_inn_sti, temp_ut_sti)
-
-        lengde_sekunder = round(hent_lydlengde_sekunder(temp_inn_sti), 2)
-
-        with open(temp_ut_sti, "rb") as f:
-            wav_data = f.read()
-
-        files_payload = {'file': ("lyd.wav", wav_data, "audio/wav")}
-        data_payload = {'language': language}
-
         async with telefon_lock:
-            timeout = httpx.Timeout(3600.0)
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                start_tid = time.time()
-                response = await client.post(WHISPER_URL, files=files_payload, data=data_payload)
-                slutt_tid = time.time()
-                brukt_tid = round(slutt_tid - start_tid, 2)
+            await vekk_telefon_og_start_server(jobb_id, modell, kjerner)
 
-        if response.status_code == 200:
-            transkribert_tekst = response.json().get("text", "")
-            lagre_transkripsjon_i_db(
-                filnavn="lydfil",  # eller ekte filnavn om du send അത് inn
-                sprak=language,
-                tekst=transkribert_tekst,
-                brukt_tid=brukt_tid,
-                modell=modell,
-                kjerner=kjerner,
-                fil_str_mb=fil_str_mb,
-                lengde_sekunder=lengde_sekunder
-            )
-            jobber[jobb_id] = {"status": "ferdig", "tekst": transkribert_tekst, "tid_brukt": brukt_tid}
-        else:
-            jobber[jobb_id] = {"status": "feil", "melding": f"AI-server svarte med kode {response.status_code}"}
+            jobber[jobb_id]["melding"] = "Konverterer lydfilen for AI-en..."
+            lengde_sekunder = round(hent_lydlengde_sekunder(temp_inn_sti), 2)
+            konverter_til_wav(temp_inn_sti, temp_ut_sti)
+
+            response, brukt_tid = await send_lyd_til_whisper(jobb_id, temp_ut_sti, language)
+
+            if response.status_code == 200:
+                transkribert_tekst = response.json().get("text", "")
+                lagre_transkripsjon_i_db(filnavn, language, transkribert_tekst, brukt_tid, modell, kjerner, fil_str_mb,
+                                         lengde_sekunder)
+                jobber[jobb_id] = {"status": "ferdig", "tekst": transkribert_tekst, "tid_brukt": brukt_tid}
+            else:
+                jobber[jobb_id] = {"status": "feil", "melding": f"AI-server svarte med kode {response.status_code}"}
 
     except Exception as e:
-        jobber[jobb_id] = {"status": "feil", "melding": f"Feil: {str(e)}"}
+        jobber[jobb_id] = {"status": "feil", "melding": f"Feil under prosessering: {str(e)}"}
 
     finally:
+        siste_jobb_tid = time.time()
+        asyncio.create_task(avslutt_server_etter_inaktivitet())
+
         if os.path.exists(temp_inn_sti):
             os.remove(temp_inn_sti)
         if os.path.exists(temp_ut_sti):
             os.remove(temp_ut_sti)
+
+
+
+
 
 def hent_lydlengde_sekunder(fil_sti: str) -> float:
     """
@@ -199,6 +251,8 @@ def hent_lydlengde_sekunder(fil_sti: str) -> float:
         return float(data['format']['duration'])
     except Exception:
         return 0.0
+
+
 
 
 async def sjekk_og_styr_batteri():
@@ -236,3 +290,10 @@ async def sjekk_og_styr_batteri():
 
         # Sjekk hver 30. minutt
         await asyncio.sleep(1800)
+
+
+
+
+def er_server_opptatt() -> bool:
+    """Sjekker om telefon-låsen er i bruk av en annen prosess."""
+    return telefon_lock.locked()

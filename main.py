@@ -12,6 +12,8 @@ from database import init_db, SessionLocal, Transkripsjon
 from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, forbered_og_start_jobb, \
     sjekk_og_styr_batteri
 import asyncio
+from services import er_server_opptatt
+
 
 load_dotenv()
 
@@ -81,6 +83,11 @@ async def motta_lydfil(
     Validerer innkommende HTTP-forespørsel (størrelse/type),
     og delegerer filhåndteringen og jobben til service-laget.
     """
+    if er_server_opptatt():
+        raise HTTPException(
+            status_code=429,
+            detail="Serveren jobber med en annen fil akkurat nå. Vennligst vent litt og prøv igjen."
+        )
     if file.content_type not in TILLATTE_TYPER:
         raise HTTPException(status_code=400, detail="Ugyldig filtype.")
 

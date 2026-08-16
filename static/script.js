@@ -166,7 +166,9 @@ async function sjekkJobbStatus(jobId) {
             statusDiv.innerText = "Feil under transkribering.";
             resultatDiv.innerText = data.melding;
         } else {
-            // Hvis "jobber", spør igjen om 3 sek
+            if (data.melding) {
+                statusDiv.innerText = data.melding;
+            }
             setTimeout(() => sjekkJobbStatus(jobId), 3000);
         }
     } catch (error) {
@@ -177,7 +179,7 @@ async function sjekkJobbStatus(jobId) {
     }
 }
 
-// 5. Oppdater den lille prikken som sjekker om serveren lever
+// 5. Oppdater den status symbolet,  som sjekker om serveren lever
 async function sjekkServerStatus(){
     try{
         let res= await fetch('/status');
