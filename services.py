@@ -142,7 +142,7 @@ async def avslutt_server_etter_inaktivitet():
     if time.time() - siste_jobb_tid >= 115 and not telefon_lock.locked():
         print("[Auto-opprydding] Inaktivitet oppdaget. Skrur av whisper-server på telefonen.")
         try:
-            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "root@172.16.42.1", "pkill whisper-server"]
+            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "pkill whisper-server"]
             await asyncio.create_subprocess_exec(*ssh_cmd, stdout=asyncio.subprocess.DEVNULL,
                                                  stderr=asyncio.subprocess.DEVNULL)
         except Exception as e:
@@ -275,7 +275,7 @@ async def sjekk_og_styr_batteri():
             subprocess.run(["./start-oneplus.sh"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(5)
 
-            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "root@172.16.42.1", "cat /sys/class/power_supply/bq27541-0/capacity"]
+            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "cat /sys/class/power_supply/bq27541-0/capacity"]
             res = subprocess.run(ssh_cmd, capture_output=True, text=True)
 
             if res.returncode == 0 and res.stdout.strip().isdigit():
