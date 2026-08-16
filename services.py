@@ -162,10 +162,12 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
 
     jobber[jobb_id] = {"status": "jobber",
                        "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
-    modell_sti = f"/home/user/whisper.cpp/models/ggml-{modell}.bin"
+
+    modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
+
     ssh_start = [
-        "ssh", "-o", "ConnectTimeout=5", "root@172.16.42.1",
-        f"pkill whisper-server; nohup /home/user/whisper.cpp/whisper-server -m {modell_sti} -t {kjerner} --port 8080 > /dev/null 2>&1 &"
+        "ssh", "-o", "ConnectTimeout=5", "oneplus",
+        f"pkill whisper-server; nohup /data/whisper.cpp/build/bin/whisper-server -m {modell_sti} -t {kjerner} --port 8080 > /dev/null 2>&1 &"
     ]
     await asyncio.create_subprocess_exec(*ssh_start)
     await asyncio.sleep(8)
