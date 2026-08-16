@@ -18,6 +18,7 @@ telefon_lock = asyncio.Lock()
 TILSTANDS_FIL = "lading_aktiv"
 jobber = {}
 siste_jobb_tid = 0.0
+aktiv_ssh_prosess = None
 
 
 
@@ -149,6 +150,46 @@ async def avslutt_server_etter_inaktivitet():
             print(f"[Auto-opprydding] Klarte ikke drepe server: {e}")
 
 
+
+
+
+
+async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
+    """
+    Starter strøm via USB for å vekke telefonen og nettverket.
+    Dreper eksisterende Whisper-prosesser før en ny server-instans startes.
+    Holder SSH-forbindelsen åpen i bakgrunnen for å hindre at OS-et dreper prosessen.
+    """
+    global aktiv_ssh_prosess
+
+    jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
+
+    proc_start = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
+                                                      stderr=asyncio.subprocess.PIPE)
+    await proc_start.communicate()
+    await asyncio.sleep(3)
+
+    jobber[jobb_id] = {"status": "jobber",
+                       "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
+    modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
+
+    pkill_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "pkill whisper-server"]
+    proc_pkill = await asyncio.create_subprocess_exec(*pkill_cmd)
+    await proc_pkill.communicate()
+    await asyncio.sleep(1)
+
+    ssh_start = [
+        "ssh", "-o", "ConnectTimeout=5", "oneplus",
+        f"cd /data/whisper.cpp && ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1"
+    ]
+
+    aktiv_ssh_prosess = await asyncio.create_subprocess_exec(*ssh_start)
+    await asyncio.sleep(15)
+
+
+
+
+'''
 async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     """Håndterer strøm, nettverk og oppstart av Whisper via SSH."""
     jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
@@ -172,6 +213,8 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     await proc_ssh.communicate()
 
     await asyncio.sleep(15)
+'''
+
 
 
 
