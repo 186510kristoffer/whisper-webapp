@@ -169,7 +169,7 @@ async function sjekkJobbStatus(jobId) {
             if (data.melding) {
                 statusDiv.innerText = data.melding;
             }
-            setTimeout(() => sjekkJobbStatus(jobId), 3000);
+            setTimeout(() => sjekkJobbStatus(jobId), 1000);
         }
     } catch (error) {
         clearInterval(tidtaker);

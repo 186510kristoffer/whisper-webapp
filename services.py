@@ -19,6 +19,7 @@ TILSTANDS_FIL = "lading_aktiv"
 jobber = {}
 siste_jobb_tid = 0.0
 aktiv_ssh_prosess = None
+gjeldende_modell = None
 
 
 
@@ -152,33 +153,35 @@ async def avslutt_server_etter_inaktivitet():
             print(f"[Auto-opprydding] Klarte ikke drepe server: {e}")
 
 
-
-
-
-
 async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     """
     Starter strøm via USB for å vekke telefonen og nettverket.
-    Dreper eksisterende Whisper-prosesser før en ny server-instans startes.
-    Holder SSH-forbindelsen åpen i bakgrunnen for å hindre at OS-et dreper prosessen.
+    Sjekker om riktig modell allerede kjører for å spare tid.
+    Holder SSH-forbindelsen åpen i bakgrunnen og bruker smart-venting
+    for å starte transkriberingen umiddelbart når modellen er lastet i RAM.
     """
-    global aktiv_ssh_prosess
+    global aktiv_ssh_prosess, gjeldende_modell
 
-    jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
+    if await sjekk_server_status() and gjeldende_modell == modell:
+        jobber[jobb_id] = {"status": "jobber",
+                           "melding": f"AI-modellen ({modell}) kjører allerede. Sender filen rett over!"}
+        return
+
+    jobber[jobb_id] = {"status": "jobber", "melding": "Sjekker strøm og vekker telefonen..."}
 
     proc_start = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
                                                       stderr=asyncio.subprocess.PIPE)
     await proc_start.communicate()
-    await asyncio.sleep(3)
+    await asyncio.sleep(1.5)
 
     jobber[jobb_id] = {"status": "jobber",
-                       "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
+                       "melding": f"Starter AI-server (Modell: {modell}, Kjerner: {kjerner})..."}
     modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
 
     pkill_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "pkill whisper-server"]
     proc_pkill = await asyncio.create_subprocess_exec(*pkill_cmd)
     await proc_pkill.communicate()
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.5)
 
     ssh_start = [
         "ssh", "-o", "ConnectTimeout=5", "oneplus",
@@ -186,7 +189,14 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     ]
 
     aktiv_ssh_prosess = await asyncio.create_subprocess_exec(*ssh_start)
-    await asyncio.sleep(15)
+
+    jobber[jobb_id]["melding"] = f"Laster AI-modellen ({modell}) inn i RAM..."
+
+    for _ in range(40):
+        if await sjekk_server_status():
+            gjeldende_modell = modell
+            break
+        await asyncio.sleep(0.5)
 
 
 
