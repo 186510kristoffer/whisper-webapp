@@ -1,5 +1,7 @@
 # Whisper Web App
 
+website: https://transcriber.kristoffer-server.uk/
+
 A lightweight, self-hosted web application built with Python and FastAPI. It allows users to record audio directly from their browser or upload existing files and receive fast text transcriptions powered by a local Whisper AI backend.
 
 The backend automatically formats incoming audio using FFmpeg and proxies it to a dedicated, hardware-accelerated Whisper server. All transcriptions, including language settings, text, and processing duration, are securely logged via SQLAlchemy.
