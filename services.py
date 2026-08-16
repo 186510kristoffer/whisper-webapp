@@ -281,7 +281,7 @@ async def sjekk_og_styr_batteri():
             if res.returncode == 0 and res.stdout.strip().isdigit():
                 prosent = int(res.stdout.strip())
 
-                if prosent >= 70:
+                if prosent >= 70 and not er_server_opptatt():
                     subprocess.run(["sudo", "uhubctl", "-l", "1-2", "-p", "1", "-a", "off"], stdout=subprocess.DEVNULL)
 
                 elif prosent <= 30:
