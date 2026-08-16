@@ -152,19 +152,19 @@ async def avslutt_server_etter_inaktivitet():
 async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     """Håndterer strøm, nettverk og oppstart av Whisper via SSH."""
     jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
-    proc = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
-                                                stderr=asyncio.subprocess.PIPE)
-    await proc.communicate()
+
+    proc_start = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
+                                                      stderr=asyncio.subprocess.PIPE)
+    await proc_start.communicate()
     await asyncio.sleep(3)
 
     jobber[jobb_id] = {"status": "jobber",
                        "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
-
     modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
 
     ssh_start = [
         "ssh", "-o", "ConnectTimeout=5", "oneplus",
-        f"pkill whisper-server; cd /data/whisper.cpp && nohup ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 < /dev/null > server.log 2>&1 & disown; sleep 2"
+        f"pkill whisper-server; cd /data/whisper.cpp && setsid ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1 < /dev/null &"
     ]
 
     proc_ssh = await asyncio.create_subprocess_exec(*ssh_start)
