@@ -88,6 +88,7 @@ def hent_jobb(jobb_id: str) -> dict:
 
 
 def lagre_transkripsjon_i_db(
+        filnavn: str,
         sprak: str,
         tekst: str,
         brukt_tid: float,
@@ -104,6 +105,7 @@ def lagre_transkripsjon_i_db(
     db = SessionLocal()
     try:
         ny_post = Transkripsjon(
+            filnavn=filnavn,
             sprak=sprak,
             tekst=tekst,
             tid_brukt_sek=brukt_tid,
