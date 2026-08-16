@@ -119,6 +119,11 @@ filSkjema.addEventListener('submit', async (e) => {
 // 3. Kommunikasjon med backend
 async function sendTilBackend(filData, filNavn) {
     const formData = new FormData();
+    const modellValg = document.getElementById('modellValg').value;
+    const kjernerValg = document.getElementById('kjernerValg').value;
+
+    formData.append('modell', modellValg);
+    formData.append('kjerner', kjernerValg);
     formData.append('file', filData, filNavn);
     formData.append('language', spraakValg.value);
 

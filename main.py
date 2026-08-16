@@ -9,7 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from database import init_db, SessionLocal, Transkripsjon
-from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, forbered_og_start_jobb
+from services import prosesser_lyd_i_bakgrunn, sjekk_server_status, hent_jobb, forbered_og_start_jobb, \
+    sjekk_og_styr_batteri
+import asyncio
 
 load_dotenv()
 
@@ -25,7 +27,9 @@ async def lifespan(app: FastAPI):
     Initialiserer databasen og gjør alt klart før vi tar imot trafikk.
     """
     init_db()
+    batteri_task = asyncio.create_task(sjekk_og_styr_batteri())
     yield
+    batteri_task.cancel()
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -70,6 +74,8 @@ async def motta_lydfil(
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         language: str = Form("no"),
+        modell: str = Form("base"),
+        kjerner: int = Form(4)
 ):
     """
     Validerer innkommende HTTP-forespørsel (størrelse/type),
@@ -82,7 +88,10 @@ async def motta_lydfil(
     if len(innhold) > MAX_FILESIZE:
         raise HTTPException(status_code=413, detail="Filen er for stor, max 50MB.")
 
-    jobb_id = forbered_og_start_jobb(innhold, file.filename, language, background_tasks)
+    fil_str_mb = round(len(innhold)/(1024*1024),2)
+
+    jobb_id = forbered_og_start_jobb(
+        innhold, file.filename, language, modell, kjerner, fil_str_mb, background_tasks)
 
     return {"job_id": jobb_id, "status": "jobber"}
 
@@ -99,10 +108,17 @@ async def hent_jobbstatus(jobb_id: str):
     return status
 
 
-@app.get("/historikk")
-async def hent_historikk(db: Session = Depends(get_db)):
+@app.get("/historikk", response_class=HTMLResponse)
+async def historikk_side(request: Request):
     """
-    Henter ut en liste over alle tidligere transkripsjoner fra databasen, 
-    sortert med den nyeste først.
+    Serverer selve historikksiden (historikk.html).
+    """
+    return templates.TemplateResponse(request=request, name="historikk.html")
+
+
+@app.get("/api/historikk")
+async def hent_historikk_data(db: Session = Depends(get_db)):
+    """
+    Returnerer alle transkripsjoner som JSON for tabellen på historikksiden.
     """
     return db.query(Transkripsjon).order_by(Transkripsjon.tidspunkt.desc()).all()

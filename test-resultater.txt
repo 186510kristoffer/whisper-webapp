@@ -6,7 +6,7 @@ Video Project 3.m4a
 
 
 
-TEST 1 RESULTATER: (testet i kronologisk rekkefølge)
+TEST 1 (nb-small-q5) RESULTATER: (testet i kronologisk rekkefølge)
 
 1 kjerne:
 Tid brukt (backend): 145.17 s
@@ -48,4 +48,24 @@ Ferdig. Tid brukt (backend): 141.83 s
 Tid brukt (frontend): 144.1 s
 
 
-TEST 2 RESULTATER:
+8 kjerner:
+Tid brukt (backend): 140.87 s
+Tid brukt (frontend): 144.0 s
+
+
+TEST 2 (nb-tiny-q5) RESULTATER:
+
+2 kjerner:
+id brukt (backend): 24.67 s
+Tid brukt (frontend): 27.9 s
+
+
+TEST 3 (nb-base-q5) RESULTATER:
+
+2 kjerner:
+Tid brukt (backend): 45.32 s
+Tid brukt (frontend): 46.0 s 
+
+8 kjerner:
+Tid brukt (backend): 48.34 s
+Tid brukt (frontend): 48.8 s

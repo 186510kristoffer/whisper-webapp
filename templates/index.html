@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Transkribering</title>
     <!-- Kobler til CSS-filen -->
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 
@@ -25,16 +25,47 @@
             <button id="stoppOpptak" class="stop" disabled> Stopp & Transkriber</button>
         </div>
 
-        <!-- Språkvalg -->
-        <div class="section" style="margin-bottom: 15px;">
-            <label for="spraakValg"><b>Velg språk for teksting:</b></label>
-            <select id="spraakValg">
-                <option value="no" selected>Norsk</option>
-                <option value="en">Engelsk</option>
-                <option value="sv">Svensk</option>
-                <option value="da">Dansk</option>
-                <option value="de">Tysk</option>
-            </select>
+
+        <div class="section innstillinger-rad">
+            <!-- Språkvalg -->
+            <div>
+                <label for="spraakValg"><b>Velg språk for teksting:</b></label>
+                <select id="spraakValg">
+                    <option value="no" selected>Norsk</option>
+                    <option value="en">Engelsk</option>
+                    <option value="sv">Svensk</option>
+                    <option value="da">Dansk</option>
+                    <option value="de">Tysk </option>
+                </select>
+            </div>
+
+            <p></p>
+            <!-- Valg av Modell-->
+            <div>
+                <label for="modellValg"><b> AI Modell:</b></label>
+                <select id="modellValg">
+                    <option value="tiny">Tiny (Rask, unøyaktig)</option>
+                    <option value="base" selected>Base (Balansert)</option>
+                    <option value="small">Small (Treg, nøyaktig)</option>
+                    <option value="medium">Medium (Tregest, mest nøyaktig)</option>
+                </select>
+            </div>
+
+            <p></p>
+            <!-- Valg av Kjerner -->
+            <div>
+                <label for="kjernerValg"><b>Kjerner:</b></label>
+                <select id="kjernerValg">
+                    <option value="1">1</option>
+                    <option value="2" selected>2 (best)</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5" >5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                </select>
+            </div>
         </div>
 
         <hr>
@@ -50,9 +81,13 @@
         <div id="status"></div>
         <div id="tidsbruk"> Tid gått: 0.0 sekunder</div>
         <div id="resultat">Transkripsjonen dukker opp her...</div>
+
+        <div style="text-align: right; margin-bottom: 10px;">
+            <a href="/historikk" class="nav-lenke">Gå til historikk </a>
+        </div>
     </div>
 
     <!-- Kobler til JavaScript-filen -->
-    <script src="/static/script.js?=v3"></script>
+    <script src="/static/script.js?=v4"></script>
 </body>
 </html>

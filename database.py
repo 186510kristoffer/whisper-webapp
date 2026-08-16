@@ -21,8 +21,13 @@ class Transkripsjon(Base):
     __tablename__ = "transkripsjoner"
 
     id = Column(Integer, primary_key=True, index=True)
+    filnavn = Column(String, nullable=False)
     tidspunkt = Column(DateTime, default=datetime.datetime.utcnow)
+    lengde_sekunder = Column(Float, nullable=True)
+    fil_str_mb = Column(Float, nullable=True)
+    modell = Column(String, nullable=False)
     sprak = Column(String(10))
+    kjerner = Column(Integer, nullable=False)
     tekst = Column(Text)
     tid_brukt_sek = Column(Float)
 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transkripsjonshistorikk</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body>
+    <div class="container" style="max-width: 1100px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>Transkripsjonshistorikk</h1>
+            <a href="/" class="nav-lenke">← Tilbake til opptaker</a>
+        </div>
+
+        <div id="laster-status">Laster inn historikk...</div>
+
+        <div class="tabell-wrapper">
+            <table id="historikkTabell" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Tidspunkt</th>
+                        <th>Filnavn</th>
+                        <th>Modell / Kjerner</th>
+                        <th>Lydlengde</th>
+                        <th>Filstørrelse</th>
+                        <th>Tid brukt</th>
+                        <th>Tekst</th>
+                    </tr>
+                </thead>
+                <tbody id="tabellKropp"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/historikk.js"></script>
+</body>
+</html>
