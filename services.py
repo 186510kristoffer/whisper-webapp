@@ -167,7 +167,7 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
 
     ssh_start = [
         "ssh", "-o", "ConnectTimeout=5", "oneplus",
-        f"pkill whisper-server; cd /data/whisper.cpp && nohup ./build/bin/whisper-server -m models/nb-{modell}-q5_0.bin -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1 &"
+        f"pkill whisper-server; cd /data/whisper.cpp && nohup ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 < /dev/null > server.log 2>&1 & sleep 2"
     ]
     await asyncio.create_subprocess_exec(*ssh_start)
     await asyncio.sleep(8)
