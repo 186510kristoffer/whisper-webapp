@@ -149,9 +149,6 @@ async def avslutt_server_etter_inaktivitet():
             print(f"[Auto-opprydding] Klarte ikke drepe server: {e}")
 
 
-
-
-
 async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
     """Håndterer strøm, nettverk og oppstart av Whisper via SSH."""
     jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
@@ -167,11 +164,14 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
 
     ssh_start = [
         "ssh", "-o", "ConnectTimeout=5", "oneplus",
-        f"pkill whisper-server; cd /data/whisper.cpp && nohup ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 < /dev/null > server.log 2>&1 & sleep 2"
+        f"pkill whisper-server; tmux new-session -d -s whisper 'cd /data/whisper.cpp && ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1'"
     ]
-    await asyncio.create_subprocess_exec(*ssh_start)
-    await asyncio.sleep(8)
 
+    proc_ssh = await asyncio.create_subprocess_exec(*ssh_start)
+
+    await proc_ssh.communicate()
+
+    await asyncio.sleep(15)
 
 
 
