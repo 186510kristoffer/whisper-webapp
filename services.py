@@ -153,33 +153,37 @@ async def avslutt_server_etter_inaktivitet():
             print(f"[Auto-opprydding] Klarte ikke drepe server: {e}")
 
 
-async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
-    """
-    Starter strøm via USB for å vekke telefonen og nettverket.
-    Sjekker om riktig modell allerede kjører for å spare tid.
-    Holder SSH-forbindelsen åpen i bakgrunnen og bruker smart-venting
-    for å starte transkriberingen umiddelbart når modellen er lastet i RAM.
-    """
+
+
+
+async def sikre_telefontilkobling(jobb_id: str = None):
+    """Kjører oppstartsskriptet for å sikre at USB-nettverket er aktivt."""
+    if jobb_id and jobb_id in jobber:
+        jobber[jobb_id]["melding"] = "Sjekker strøm og vekker telefonen..."
+
+    proc = await asyncio.create_subprocess_exec(
+        "./scripts/start-oneplus.sh", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    await proc.communicate()
+    await asyncio.sleep(1.5)
+
+
+
+
+
+async def start_ai_server(jobb_id: str, modell: str, kjerner: int):
+    """Starter Whisper-serveren via SSH hvis riktig modell ikke allerede kjører."""
     global aktiv_ssh_prosess, gjeldende_modell
 
     if await sjekk_server_status() and gjeldende_modell == modell:
-        jobber[jobb_id] = {"status": "jobber",
-                           "melding": f"AI-modellen ({modell}) kjører allerede. Sender filen rett over!"}
+        jobber[jobb_id]["melding"] = f"AI-modellen ({modell}) kjører allerede. Sender filen!"
         return
 
-    jobber[jobb_id] = {"status": "jobber", "melding": "Sjekker strøm og vekker telefonen..."}
-
-    proc_start = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
-                                                      stderr=asyncio.subprocess.PIPE)
-    await proc_start.communicate()
-    await asyncio.sleep(1.5)
-
-    jobber[jobb_id] = {"status": "jobber",
-                       "melding": f"Starter AI-server (Modell: {modell}, Kjerner: {kjerner})..."}
+    jobber[jobb_id]["melding"] = f"Starter AI-server (Modell: {modell}, Kjerner: {kjerner})..."
     modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
 
-    pkill_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "pkill whisper-server"]
-    proc_pkill = await asyncio.create_subprocess_exec(*pkill_cmd)
+    proc_pkill = await asyncio.create_subprocess_exec("ssh", "-o", "ConnectTimeout=5", "oneplus",
+                                                      "pkill whisper-server")
     await proc_pkill.communicate()
     await asyncio.sleep(0.5)
 
@@ -187,9 +191,7 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
         "ssh", "-o", "ConnectTimeout=5", "oneplus",
         f"cd /data/whisper.cpp && ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1"
     ]
-
     aktiv_ssh_prosess = await asyncio.create_subprocess_exec(*ssh_start)
-
     jobber[jobb_id]["melding"] = f"Laster AI-modellen ({modell}) inn i RAM..."
 
     for _ in range(40):
@@ -201,31 +203,65 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
 
 
 
-'''
-async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
-    """Håndterer strøm, nettverk og oppstart av Whisper via SSH."""
-    jobber[jobb_id] = {"status": "jobber", "melding": "Skrur på strøm til telefonen og vekker nettverket..."}
 
-    proc_start = await asyncio.create_subprocess_exec("./start-oneplus.sh", stdout=asyncio.subprocess.PIPE,
-                                                      stderr=asyncio.subprocess.PIPE)
-    await proc_start.communicate()
-    await asyncio.sleep(3)
 
-    jobber[jobb_id] = {"status": "jobber",
-                       "melding": f"Starter AI-server på telefonen (Modell: {modell}, Kjerner: {kjerner}). Dette tar litt tid..."}
-    modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
+async def hent_og_logg_telemetri():
+    """Henter temperaturer/batteri via SSH, logger til fil, og returnerer prosent (int)."""
+    ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "scripts/telemetri.sh"]
+    proc = await asyncio.create_subprocess_exec(*ssh_cmd, stdout=asyncio.subprocess.PIPE,
+                                                stderr=asyncio.subprocess.PIPE)
+    stdout, _ = await proc.communicate()
 
-    ssh_start = [
-        "ssh", "-o", "ConnectTimeout=5", "oneplus",
-        f"pkill whisper-server; cd /data/whisper.cpp && setsid ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1 < /dev/null &"
-    ]
+    output = stdout.decode().strip()
+    if proc.returncode == 0 and "," in output:
+        data = output.split(",")
+        if len(data) == 4 and data[0].isdigit():
+            prosent = int(data[0])
+            tid_na = time.strftime("%Y-%m-%d %H:%M:%S")
+            logg_linje = f"[{tid_na}] Batteri: {prosent}% ({data[1]}°C) | CPU-snitt: {data[2]}°C | GPU-snitt: {data[3]}°C\n"
 
-    proc_ssh = await asyncio.create_subprocess_exec(*ssh_start)
+            with open("telemetri.log", "a") as logg_fil:
+                logg_fil.write(logg_linje)
 
-    await proc_ssh.communicate()
+            return prosent
+    return None
 
-    await asyncio.sleep(15)
-'''
+
+
+
+
+async def styr_lading(prosent: int):
+    """Kutter eller starter strømmen til telefonen basert på batteriprosent og serverstatus."""
+    if prosent >= 70 and not er_server_opptatt():
+        await asyncio.create_subprocess_exec("./scripts/stopp-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
+    elif prosent <= 30:
+        await asyncio.create_subprocess_exec("./scripts/start-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
+
+
+
+
+
+async def sjekk_og_styr_batteri():
+    """Hovedløkke for batteri og telemetri (kjører hvert 30. minutt)."""
+    while True:
+        try:
+            if os.path.exists(TILSTANDS_FIL):
+                with open(TILSTANDS_FIL, "r") as f:
+                    if f.read().strip().lower() == "false":
+                        await asyncio.sleep(900)
+                        continue
+
+            await sikre_telefontilkobling()
+            await asyncio.sleep(5)
+
+            prosent = await hent_og_logg_telemetri()
+            if prosent is not None:
+                await styr_lading(prosent)
+
+        except Exception:
+            pass
+
+        await asyncio.sleep(1800)
 
 
 
@@ -233,7 +269,7 @@ async def vekk_telefon_og_start_server(jobb_id: str, modell: str, kjerner: int):
 
 async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, language: str):
     """Sender den ferdige WAV-filen til Whisper API-et og returnerer responsen og tidsbruken."""
-    jobber[jobb_id] = {"status": "jobber", "melding": "Transkriberer teksten! Sitter og venter på svar..."}
+    jobber[jobb_id] = {"status": "jobber", "melding": "Transkriberer teksten"}
 
     with open(wav_sti, "rb") as f:
         wav_data = f.read()
@@ -261,9 +297,10 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
 
     try:
         async with telefon_lock:
-            await vekk_telefon_og_start_server(jobb_id, modell, kjerner)
+            await sikre_telefontilkobling(jobb_id)
+            await start_ai_server(jobb_id, modell, kjerner)
 
-            jobber[jobb_id]["melding"] = "Konverterer lydfilen for AI-en..."
+            jobber[jobb_id]["melding"] = "Konverterer lydfilen for whisper"
             lengde_sekunder = round(hent_lydlengde_sekunder(temp_inn_sti), 2)
             konverter_til_wav(temp_inn_sti, temp_ut_sti)
 
@@ -308,45 +345,6 @@ def hent_lydlengde_sekunder(fil_sti: str) -> float:
         return float(data['format']['duration'])
     except Exception:
         return 0.0
-
-
-
-
-async def sjekk_og_styr_batteri():
-    """
-    Bakgrunnsoppgave som kjører periodisk for å holde batteriet
-    mellom 30% og 70% når enheten står plugget i.
-    Respekterer lade_stopp.lock for manuell overstyring (f.eks. før ferie).
-    """
-    while True:
-        try:
-            if os.path.exists(TILSTANDS_FIL):
-                with open(TILSTANDS_FIL, "r") as f:
-                    innhold = f.read().strip().lower()
-                    if innhold == "false":
-                        await asyncio.sleep(900)  # Vent 15 min og sjekk igjen
-                        continue
-
-            subprocess.run(["./start-oneplus.sh"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            await asyncio.sleep(5)
-
-            ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "cat /sys/class/power_supply/bq27541-0/capacity"]
-            res = subprocess.run(ssh_cmd, capture_output=True, text=True)
-
-            if res.returncode == 0 and res.stdout.strip().isdigit():
-                prosent = int(res.stdout.strip())
-
-                if prosent >= 70 and not er_server_opptatt():
-                    subprocess.run(["sudo", "uhubctl", "-l", "1-2", "-p", "1", "-a", "off"], stdout=subprocess.DEVNULL)
-
-                elif prosent <= 30:
-                    subprocess.run(["sudo", "uhubctl", "-l", "1-2", "-p", "1", "-a", "on"], stdout=subprocess.DEVNULL)
-
-        except Exception as e:
-            pass
-
-        # Sjekk hver 30. minutt
-        await asyncio.sleep(1800)
 
 
 
