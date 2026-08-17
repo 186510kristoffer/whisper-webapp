@@ -19,7 +19,7 @@ load_dotenv()
 
 
 MAX_FILESIZE = 50 * 1024 * 1024
-TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4"]
+TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4", "audio/webm"]
 
 
 @asynccontextmanager
