@@ -17,9 +17,7 @@ from services import er_server_opptatt
 
 load_dotenv()
 
-
 MAX_FILESIZE = 50 * 1024 * 1024
-TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4", "audio/webm"]
 
 
 @asynccontextmanager
@@ -36,6 +34,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
 
 
 def get_db():
@@ -59,6 +59,8 @@ async def hjemmeside(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
 
+
+
 @app.get("/status")
 async def sjekk_status():
     """
@@ -69,6 +71,8 @@ async def sjekk_status():
     if er_online:
         return {"status": "online"}
     return {"status": "offline"}
+
+
 
 
 @app.post("/transkriber")
@@ -88,19 +92,22 @@ async def motta_lydfil(
             status_code=429,
             detail="Serveren jobber med en annen fil akkurat nå. Vennligst vent litt og prøv igjen."
         )
-    if file.content_type not in TILLATTE_TYPER:
-        raise HTTPException(status_code=400, detail="Ugyldig filtype.")
+
+    if not (file.content_type.startswith("audio/") or file.content_type.startswith("video/")):
+        raise HTTPException(status_code=400, detail=f"Ugyldig filtype: {file.content_type}")
 
     innhold = await file.read()
     if len(innhold) > MAX_FILESIZE:
         raise HTTPException(status_code=413, detail="Filen er for stor, max 50MB.")
 
-    fil_str_mb = round(len(innhold)/(1024*1024),2)
+    fil_str_mb = round(len(innhold) / (1024 * 1024), 2)
 
     jobb_id = forbered_og_start_jobb(
         innhold, file.filename, language, modell, kjerner, fil_str_mb, background_tasks)
 
     return {"job_id": jobb_id, "status": "jobber"}
+
+
 
 
 @app.get("/jobb/{jobb_id}")
@@ -115,12 +122,16 @@ async def hent_jobbstatus(jobb_id: str):
     return status
 
 
+
+
 @app.get("/historikk", response_class=HTMLResponse)
 async def historikk_side(request: Request):
     """
     Serverer selve historikksiden (historikk.html).
     """
     return templates.TemplateResponse(request=request, name="historikk.html")
+
+
 
 
 @app.get("/api/historikk")
