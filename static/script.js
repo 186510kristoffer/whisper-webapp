@@ -164,11 +164,14 @@ stoppBtn.addEventListener('click', () => {
 });
 
 // Knapp for å sende inn lyden etter å ha hørt på den
-sendOpptakBtn.addEventListener('click', async () => {
+endOpptakBtn.addEventListener('click', async () => {
+    const blobÅSende = midlertidigLydBlob;
     tilbakestillOpptakUI();
+
     statusDiv.innerText = "Sender til AI-server for transkribering...";
     startStoppeklokke();
-    await sendTilBackend(midlertidigLydBlob, 'mikrofon_opptak.webm');
+
+    await sendTilBackend(blobÅSende, 'mikrofon_opptak.webm');
 });
 
 // Knapp for å kaste lyden
