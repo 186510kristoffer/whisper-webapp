@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
-    <div class="container historikk-main-container">
+    <div class="container" style="max-width: 1200px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>Transkripsjonshistorikk</h1>
             <a href="/" class="nav-lenke">← Tilbake til opptaker</a>
@@ -15,10 +15,26 @@
 
         <div id="laster-status">Laster inn historikk...</div>
 
-        <!-- Her vil JavaScriptet bygge kortene -->
-        <div id="historikk-kort-container"></div>
+        <div class="tabell-wrapper">
+            <table id="historikkTabell" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Tidspunkt</th>
+                        <th>Filnavn</th>
+                        <th>Modell / Kjerner</th>
+                        <th>Lydlengde</th>
+                        <th>Filstørrelse</th>
+                        <th>AI Tid</th>
+                        <th>Total Tid</th>
+                        <th>CPU Temp</th>
+                        <th style="min-width: 300px;">Tekst</th>
+                    </tr>
+                </thead>
+                <tbody id="tabellKropp"></tbody>
+            </table>
+        </div>
     </div>
 
-    <script src="/static/historikk.js?v=2"></script>
+    <script src="/static/historikk.js"></script>
 </body>
 </html>

@@ -37,7 +37,8 @@ function toggleTekst(id) {
 
 async function lastHistorikk() {
     const lasterStatus = document.getElementById("laster-status");
-    const container = document.getElementById("historikk-kort-container");
+    const tabell = document.getElementById("historikkTabell");
+    const tabellKropp = document.getElementById("tabellKropp");
 
     try {
         const res = await fetch("/api/historikk");
@@ -50,77 +51,42 @@ async function lastHistorikk() {
             return;
         }
 
-        container.innerHTML = "";
+        tabellKropp.innerHTML = "";
 
         data.forEach(rad => {
-            // Håndterer lang tekst (økte grensen litt til 150 tegn for det nye designet)
-            const harLangTekst = rad.tekst && rad.tekst.length > 150;
-            const kortTekst = harLangTekst ? rad.tekst.substring(0, 150) + "..." : (rad.tekst || "-");
+            const tr = document.createElement("tr");
 
-            const tekstBlokk = harLangTekst ? `
+            const harLangTekst = rad.tekst && rad.tekst.length > 80;
+            const kortTekst = harLangTekst ? rad.tekst.substring(0, 80) + "..." : (rad.tekst || "-");
+
+            const tekstCelle = harLangTekst ? `
                 <span id="tekst-kort-${rad.id}">${kortTekst}</span>
                 <span id="tekst-full-${rad.id}" style="display: none;">${rad.tekst}</span>
-                <br><br>
+                <br>
                 <span class="vis-mer-knapp" id="knapp-${rad.id}" onclick="toggleTekst(${rad.id})">Vis mer</span>
             ` : (rad.tekst || "-");
 
-            // Håndter potensielle null-verdier trygt
-            const totalTid = rad.total_tid_sek ? `${rad.total_tid_sek} s` : "N/A";
-            const sluttTemp = rad.telefon_slutt_temp ? `${rad.telefon_slutt_temp} °C` : "N/A";
-            const lydLengde = rad.lengde_sekunder ? formaterSekunder(rad.lengde_sekunder) : "N/A";
-            const filStr = rad.fil_str_mb ? `${rad.fil_str_mb} MB` : "N/A";
-            const aiTid = rad.tid_brukt_sek ? `${rad.tid_brukt_sek} s` : "-";
+            // Sikre oss mot tomme felt hvis noen gamle rader mangler data
+            const totalTid = rad.total_tid_sek ? `${rad.total_tid_sek} s` : "-";
+            const sluttTemp = rad.telefon_slutt_temp ? `${rad.telefon_slutt_temp} °C` : "-";
 
-            // Bygg HTML for kortet
-            const kort = document.createElement("div");
-            kort.className = "historikk-kort";
-
-            kort.innerHTML = `
-                <div class="historikk-header">
-                    <div class="historikk-tittel">${rad.filnavn || "Ukjent fil"}</div>
-                    <div class="historikk-dato">${formaterDato(rad.tidspunkt)}</div>
-                </div>
-                
-                <div class="historikk-meta">
-                    <div class="meta-felt">
-                        <span class="meta-label">Språk</span>
-                        <span class="meta-verdi">${rad.sprak || "-"}</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">Modell / Kjerner</span>
-                        <span class="meta-verdi">${rad.modell || "-"} (${rad.kjerner || "-"})</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">Lydlengde</span>
-                        <span class="meta-verdi">${lydLengde}</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">Filstørrelse</span>
-                        <span class="meta-verdi">${filStr}</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">AI Tid (Whisper)</span>
-                        <span class="meta-verdi">${aiTid}</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">Total Tid (Backend)</span>
-                        <span class="meta-verdi">${totalTid}</span>
-                    </div>
-                    <div class="meta-felt">
-                        <span class="meta-label">CPU Temp</span>
-                        <span class="meta-verdi">${sluttTemp}</span>
-                    </div>
-                </div>
-                
-                <div class="transkripsjon-tekst">
-                    ${tekstBlokk}
-                </div>
+            tr.innerHTML = `
+                <td style="white-space: nowrap;">${formaterDato(rad.tidspunkt)}</td>
+                <td><b>${rad.filnavn || "-"}</b></td>
+                <td style="white-space: nowrap;">${rad.modell || "-"} (${rad.kjerner || "-"} k.)</td>
+                <td style="white-space: nowrap;">${formaterSekunder(rad.lengde_sekunder)}</td>
+                <td style="white-space: nowrap;">${rad.fil_str_mb ? rad.fil_str_mb + " MB" : "-"}</td>
+                <td style="white-space: nowrap;">${formaterSekunder(rad.tid_brukt_sek)}</td>
+                <td style="white-space: nowrap;">${totalTid}</td>
+                <td style="white-space: nowrap;">${sluttTemp}</td>
+                <td>${tekstCelle}</td>
             `;
 
-            container.appendChild(kort);
+            tabellKropp.appendChild(tr);
         });
 
         lasterStatus.style.display = "none";
+        tabell.style.display = "table";
 
     } catch (err) {
         lasterStatus.innerText = "Feil ved lasting av historikk.";
