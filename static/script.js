@@ -16,10 +16,7 @@ const tidsbrukDiv = document.getElementById('tidsbruk');
 const MAX_FILESIZE = 50 * 1024 * 1024;
 const TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4", "audio/webm"];
 
-
-
 function settLasterTilstand(laster) {
-    // Låser eller åpner knappene slik at man ikke kan dobbelttrykke
     startBtn.disabled = laster;
     filInput.disabled = laster;
     sendFilBtn.disabled = laster;
@@ -44,6 +41,61 @@ function stoppStoppeklokke(endeligTidFraBackend) {
     tidsbrukDiv.innerText = `Ferdig. Whisper AI brukte: ${endeligTidFraBackend} s\n Tid brukt totalt: ${totalFrontendTid} s`;
 }
 
+// --- NYE VARIABLER, SLIDERS OG OPPTAKSLOGIKK ---
+
+// Konfigurasjon for modell-slider
+const modellNavn = { 1: "tiny", 2: "base", 3: "small", 4: "medium" };
+const modellTekst = {
+    1: "Tiny (Veldig rask, unøyaktighet)",
+    2: "Base (Balansert, standard)",
+    3: "Small (Tregere, høy nøyaktighet)",
+    4: "Medium (Ekstremt treg, best nøyaktighet)"
+};
+
+// Referanser til UI-elementer
+const modellSlider = document.getElementById('modellSlider');
+const modellBeskrivelse = document.getElementById('modellBeskrivelse');
+const kjernerSlider = document.getElementById('kjernerSlider');
+const kjernerBeskrivelse = document.getElementById('kjernerBeskrivelse');
+const filOpplastingSeksjon = document.getElementById('filOpplastingSeksjon');
+
+const opptakBoks = document.getElementById('opptakBoks');
+const opptakTeller = document.getElementById('opptakTeller');
+const opptakStatusTekst = document.getElementById('opptakStatusTekst');
+const etterOpptakValg = document.getElementById('etterOpptakValg');
+const lydAvspiller = document.getElementById('lydAvspiller');
+const sendOpptakBtn = document.getElementById('sendOpptakBtn');
+const forkastOpptakBtn = document.getElementById('forkastOpptakBtn');
+
+let opptakTidtaker;
+let opptakSekunder = 0;
+let midlertidigLydBlob = null;
+
+// Hjelpefunksjon for tid (MM:SS)
+function formaterTid(sekunder) {
+    const min = Math.floor(sekunder / 60).toString().padStart(2, '0');
+    const sek = (sekunder % 60).toString().padStart(2, '0');
+    return `${min}:${sek}`;
+}
+
+// Oppdater teksten når man drar i sliderne
+modellSlider.addEventListener('input', (e) => {
+    modellBeskrivelse.innerText = modellTekst[e.target.value];
+});
+kjernerSlider.addEventListener('input', (e) => {
+    kjernerBeskrivelse.innerText = `${e.target.value} kjerner valgt`;
+});
+
+// Hjelpefunksjon for å rydde opp UI
+function tilbakestillOpptakUI() {
+    clearInterval(opptakTidtaker);
+    opptakBoks.classList.add('skjult');
+    startBtn.classList.remove('skjult');
+    etterOpptakValg.classList.add('skjult');
+    filOpplastingSeksjon.classList.remove('skjult'); // VIS filopplasting igjen
+    lydAvspiller.src = "";
+    midlertidigLydBlob = null;
+}
 
 // 1. Håndter direkte opptak
 startBtn.addEventListener('click', async () => {
@@ -56,38 +108,75 @@ startBtn.addEventListener('click', async () => {
             if (event.data.size > 0) lydBiter.push(event.data);
         };
 
-        mediaRecorder.onstop = async () => {
-            const lydBlob = new Blob(lydBiter, { type: 'audio/webm' });
+        mediaRecorder.onstop = () => {
+            clearInterval(opptakTidtaker);
+            midlertidigLydBlob = new Blob(lydBiter, { type: 'audio/webm' });
 
-            if (lydBlob.size > MAX_FILESIZE) {
+            if (midlertidigLydBlob.size > MAX_FILESIZE) {
                 statusDiv.innerText = "Feil: Opptaket ble for stort.";
-                settLasterTilstand(false); // Lås opp knapper igjen
+                tilbakestillOpptakUI();
+                settLasterTilstand(false);
                 return;
             }
 
-            statusDiv.innerText = "Sender til AI-server for transkribering...";
-            startStoppeklokke();
-            await sendTilBackend(lydBlob, 'mikrofon_opptak.webm');
+            stoppBtn.classList.add('skjult');
+            opptakStatusTekst.innerText = "Opptak ferdig. Sjekk lyden og velg under:";
+            opptakStatusTekst.classList.remove('blinker');
+
+            const lydUrl = URL.createObjectURL(midlertidigLydBlob);
+            lydAvspiller.src = lydUrl;
+            etterOpptakValg.classList.remove('skjult');
+
             stream.getTracks().forEach(track => track.stop());
         };
 
         mediaRecorder.start();
-        settLasterTilstand(true); // Lås alt unntatt stoppknappen
-        stoppBtn.disabled = false;
-        statusDiv.innerText = "Tar opp, snakk i mikrofonen";
+        settLasterTilstand(true);
+
+        startBtn.classList.add('skjult');
+        opptakBoks.classList.remove('skjult');
+        stoppBtn.classList.remove('skjult');
+        etterOpptakValg.classList.add('skjult');
+        filOpplastingSeksjon.classList.add('skjult'); // SKJUL filopplasting
+
+        opptakStatusTekst.innerText = "🔴 Tar opp lyd...";
+        opptakStatusTekst.classList.add('blinker');
+
+        opptakSekunder = 0;
+        opptakTeller.innerText = "00:00";
+        opptakTidtaker = setInterval(() => {
+            opptakSekunder++;
+            opptakTeller.innerText = formaterTid(opptakSekunder);
+        }, 1000);
+
+        statusDiv.innerText = "";
         resultatDiv.innerText = "";
-        tidsbrukDiv.style.display = 'none'; // Skjul klokken mens vi tar opp
+        tidsbrukDiv.style.display = 'none';
     } catch (err) {
         statusDiv.innerText = "Feil: Fikk ikke tilgang til mikrofonen.";
         console.error(err);
     }
 });
 
+// Stopp-knapp
 stoppBtn.addEventListener('click', () => {
     mediaRecorder.stop();
-    stoppBtn.disabled = true;
 });
 
+// Knapp for å sende inn lyden etter å ha hørt på den
+sendOpptakBtn.addEventListener('click', async () => {
+    tilbakestillOpptakUI();
+    statusDiv.innerText = "Sender til AI-server for transkribering...";
+    startStoppeklokke();
+    await sendTilBackend(midlertidigLydBlob, 'mikrofon_opptak.webm');
+});
+
+// Knapp for å kaste lyden
+forkastOpptakBtn.addEventListener('click', () => {
+    tilbakestillOpptakUI();
+    statusDiv.innerText = "Opptak forkastet.";
+    settLasterTilstand(false);
+});
 
 // 2. Håndter filopplasting
 filSkjema.addEventListener('submit', async (e) => {
@@ -95,35 +184,35 @@ filSkjema.addEventListener('submit', async (e) => {
     const fil = document.getElementById('lydFil').files[0];
     if (!fil) return;
 
-    // 1. Validering av filstørrelse
     if (fil.size > MAX_FILESIZE) {
         statusDiv.innerText = "Feil: Filen er for stor, maks 50 MB tillatt.";
-        return; // Stopper prosessen umiddelbart
+        return;
     }
 
-    // 2. Validering av filtype (Fail Fast i frontend)
     if (!TILLATTE_TYPER.includes(fil.type) && !fil.type.startsWith("audio/") && !fil.type.startsWith("video/")) {
         statusDiv.innerText = "Feil: Ugyldig filtype. Vennligst velg en godkjent lyd- eller videofil.";
-        return; // Stopper prosessen umiddelbart
-    }
+        return;
+    } // <-- Her var feilen! Denne manglet.
 
-    settLasterTilstand(true); // Lås alle inputfelter
-    startStoppeklokke();      // Start telleren
+    settLasterTilstand(true);
+    startStoppeklokke();
     statusDiv.innerText = "Sender fil og venter på server...";
     resultatDiv.innerText = "";
 
     await sendTilBackend(fil, fil.name);
 });
 
-
 // 3. Kommunikasjon med backend
 async function sendTilBackend(filData, filNavn) {
     const formData = new FormData();
-    const modellValg = document.getElementById('modellValg').value;
-    const kjernerValg = document.getElementById('kjernerValg').value;
+    const modellVerdi = modellSlider.value;
+    const faktiskModell = modellNavn[modellVerdi];
+    const kjernerVerdi = kjernerSlider.value;
 
-    formData.append('modell', modellValg);
-    formData.append('kjerner', kjernerValg);
+    const lydSpraak = document.querySelector('input[name="lydSpraak"]:checked').value;
+
+    formData.append('modell', faktiskModell);
+    formData.append('kjerner', kjernerVerdi);
     formData.append('file', filData, filNavn);
     formData.append('language', spraakValg.value);
 
@@ -136,12 +225,12 @@ async function sendTilBackend(filData, filNavn) {
         if (!response.ok) throw new Error("Serverfeil ved opplasting");
 
         const data = await response.json();
-        statusDiv.innerText = "Fil mottatt! Sjekker status...";
+        statusDiv.innerText = "Fil mottatt, sjekker status...";
         sjekkJobbStatus(data.job_id);
 
     } catch (err) {
         clearInterval(tidtaker);
-        settLasterTilstand(false); // Lås opp ved feil
+        settLasterTilstand(false);
         statusDiv.innerText = "Nettverksfeil eller avvist av server.";
         resultatDiv.innerText = String(err);
     }
@@ -157,7 +246,7 @@ async function sjekkJobbStatus(jobId) {
 
         if (data.status === "ferdig") {
             stoppStoppeklokke(data.tid_brukt);
-            settLasterTilstand(false); // Åpne knapper igjen
+            settLasterTilstand(false);
             statusDiv.innerText = "Transkribering fullført";
             resultatDiv.innerText = data.tekst.replace(/\n/g, ' ');
         } else if (data.status === "feil") {
@@ -179,7 +268,7 @@ async function sjekkJobbStatus(jobId) {
     }
 }
 
-// 5. Oppdater den status symbolet,  som sjekker om serveren lever
+// 5. Oppdater den status symbolet
 async function sjekkServerStatus(){
     try{
         let res= await fetch('/status');

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Transkribering</title>
     <!-- Kobler til CSS-filen -->
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 
@@ -18,76 +18,108 @@
             <div id="status-indicator" title="Sjekker status..."></div>
         </div>
 
-        <div class="section innstillinger-rad">
-            <!-- Språkvalg -->
-            <div>
-                <label for="spraakValg"><b>Velg språk for teksting:</b></label>
-                <select id="spraakValg">
-                    <option value="no" selected>Norsk</option>
-                    <option value="en">Engelsk</option>
-                    <option value="sv">Svensk</option>
-                    <option value="da">Dansk</option>
-                    <option value="de">Tysk </option>
-                </select>
+        <!-- SETTINGS PANEl -->
+        <div class="settings-panel">
+
+            <!-- Kildespråk (Radio) -->
+            <div class="setting-row">
+                <div class="setting-label">Kildespråk (Lyd)</div>
+                <div class="setting-control radio-gruppe">
+                    <label>
+                        <input type="radio" name="lydSpraak" value="norsk" checked>
+                        Norsk
+                    </label>
+                    <label>
+                        <input type="radio" name="lydSpraak" value="engelsk">
+                        Engelsk (ikke implementert)
+                    </label>
+                    <p></p>
+                </div>
             </div>
 
-            <p></p>
-            <!-- Valg av Modell-->
-            <div>
-                <label for="modellValg"><b> AI Modell:</b></label>
-                <select id="modellValg">
-                    <option value="tiny">Tiny (Rask, unøyaktig)</option>
-                    <option value="base" selected>Base (Balansert)</option>
-                    <option value="small">Small (Treg, nøyaktig)</option>
-                    <option value="medium">Medium (Tregest, mest nøyaktig)</option>
-                </select>
+
+
+            <!-- Utdata (Dropdown) -->
+            <div class="setting-row">
+                <div class="setting-label">Utdata (Tekst)</div>
+                <div class="setting-control">
+                    <select id="spraakValg">
+                        <option value="no" selected>Norsk</option>
+                        <option value="en">Engelsk</option>
+                        <option value="sv">Svensk</option>
+                        <option value="da">Dansk</option>
+                        <option value="de">Tysk</option>
+                    </select>
+                </div>
             </div>
 
-            <p></p>
-            <!-- Valg av Kjerner -->
-            <div>
-                <label for="kjernerValg"><b>Velg antall CPU kjerner:</b></label>
-                <select id="kjernerValg">
-                    <option value="1">1</option>
-                    <option value="2" selected>2 (best)</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5" >5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8 (alle) </option>
-                </select>
+            <!-- Modell (Slider) -->
+            <div class="setting-row">
+                <div class="setting-label">AI Modell</div>
+                <div class="setting-control">
+                    <input type="range" id="modellSlider" min="1" max="4" value="2" step="1">
+                    <div id="modellBeskrivelse" class="slider-info">Base (Balansert, standard)</div>
+                </div>
             </div>
+
+            <!-- Kjerner (Slider) -->
+            <div class="setting-row">
+                <div class="setting-label">CPU Kjerner <br>(2 er best)</div>
+                <div class="setting-control">
+                    <input type="range" id="kjernerSlider" min="1" max="8" value="2" step="1">
+                    <div id="kjernerBeskrivelse" class="slider-info">2 kjerner valgt </div>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Opptaksknapper -->
-        <div class="section">
-            <p>Spill inn lyd direkte fra mikrofonen din:</p>
-            <button id="startOpptak">Start opptak</button>
-            <button id="stoppOpptak" class="stop" disabled> Stopp & Transkriber</button>
+       <!-- ===  WRAPPER START === -->
+        <div class="aksjons-sone">
+
+            <!-- Opptaksknapper -->
+            <div class="section">
+                <button id="startOpptak">Start nytt opptak</button>
+
+                <div id="opptakBoks" class="skjult">
+                    <h3 id="opptakStatusTekst" class="blinker">🔴 Tar opp lyd...</h3>
+                    <div id="opptakTeller">00:00</div>
+
+                    <button id="stoppOpptak" class="stop">Stopp opptak</button>
+
+                    <div id="etterOpptakValg" class="skjult">
+                        <audio id="lydAvspiller" controls></audio>
+                        <div class="etterOpptakKnapper">
+                            <button id="sendOpptakBtn" class="suksess">Send & Transkriber</button>
+                            <button id="forkastOpptakBtn" class="stop">Forkast</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Filopplasting (Pakket inn for å kunne skjules) -->
+            <div id="filOpplastingSeksjon">
+                <form id="filSkjema">
+                    <p>Eller last opp en eksisterende fil (Max 50MB):</p>
+                    <input type="file" id="lydFil" accept="audio/*,video/*" required>
+                    <button type="submit">Transkriber opplastet fil</button>
+                </form>
+            </div>
+            <div id="status"></div>
+            <div id="tidsbruk">Tid gått: 0.0 sekunder</div>
         </div>
 
+        <!-- Status og resultat  -->
 
-        <hr>
+        <div id="resultat">Transkripsjonen dukker opp her</div>
 
-        <!-- Vanlig filopplasting -->
-        <form id="filSkjema">
-            <p>Eller last opp en eksisterende fil (Max 50MB):</p>
-            <input type="file" id="lydFil" accept="audio/*,video/*" required>
-            <button type="submit">Transkriber fil</button>
-        </form>
-
-        <!-- Status og resultat -->
-        <div id="status"></div>
-        <div id="tidsbruk"> Tid gått: 0.0 sekunder</div>
-        <div id="resultat">Transkripsjonen dukker opp her...</div>
-
-        <div style="text-align: right; margin-bottom: 10px;">
-            <a href="/historikk" class="nav-lenke">Gå til historikk </a>
+        <div style="text-align: right; margin-bottom: 10px; margin-top: 20px;">
+            <a href="/historikk" class="nav-lenke">Gå til historikk →</a>
         </div>
     </div>
 
     <!-- Kobler til JavaScript-filen -->
-    <script src="/static/script.js?=v6"></script>
+    <script src="/static/script.js?=v7"></script>
 </body>
 </html>

@@ -212,3 +212,133 @@ innstillinger-rad {
     color: #333;
     line-height: 1.6;
 }
+
+/* --- OPPTAKSBOKS & UI --- */
+.skjult {
+    display: none !important;
+}
+
+#opptakBoks {
+    background-color: #fff3cd; /* En myk, gul varselsfarge */
+    border: 2px solid #ffe69c;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#opptakStatusTekst {
+    color: #d35400;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+#opptakTeller {
+    font-size: 32px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-family: monospace;
+}
+
+/* Enkel blinke-animasjon for å gjøre opptaket ekstra tydelig */
+.blinker {
+    animation: blinker 1.5s linear infinite;
+}
+@keyframes blinker {
+    50% { opacity: 0.3; }
+}
+
+#lydAvspiller {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+.etterOpptakKnapper {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+button.suksess {
+    background-color: #27ae60;
+}
+button.suksess:hover {
+    background-color: #2ecc71;
+}
+
+/* --- SETTINGS PANEL --- */
+.settings-panel {
+    background-color: #f8f9fa;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.setting-label {
+    flex: 0 0 150px;
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 0.9em;
+}
+
+.setting-control {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Radio-knapper side om side */
+.radio-gruppe {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+}
+.radio-gruppe label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Stil for Sliders (Range inputs) */
+input[type="range"] {
+    width: 100%;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+.slider-info {
+    font-size: 0.85em;
+    color: #3498db;
+    font-weight: bold;
+}
+
+/* Reserverer plass slik at resultatboksen ikke hopper */
+.aksjons-sone {
+    min-height: 320px;
+}
+
+/* Du kan også gi selve resultatboksen en fast minimumshøyde
+   slik at den ikke krymper når den tømmes for tekst */
+#resultat {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #ecf0f1;
+    border-radius: 4px;
+    min-height: 150px; /* Økt fra 50px til 150px for en mer massiv boks */
+    white-space: pre-wrap;
+    color: #333;
+}
