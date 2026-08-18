@@ -8,6 +8,7 @@ from database import SessionLocal, Transkripsjon
 import json
 import asyncio
 import subprocess
+from database import SessionLocal, Transkripsjon, Telemetri
 
 
 
@@ -20,6 +21,7 @@ jobber = {}
 siste_jobb_tid = 0.0
 aktiv_ssh_prosess = None
 gjeldende_modell = None
+er_i_ladefase = False
 
 
 
@@ -96,13 +98,9 @@ def lagre_transkripsjon_i_db(
         modell: str,
         kjerner: int,
         fil_str_mb: float,
-        lengde_sekunder: float
+        lengde_sekunder: float,
+        slutt_temp: float  # NY PARAMETER
 ):
-    """
-    Oppretter en ny databasetilkobling, lagrer den ferdige transkripsjonen,
-    og sørger for at tilkoblingen lukkes trygt uansett utfall.
-    """
-
     db = SessionLocal()
     try:
         ny_post = Transkripsjon(
@@ -113,7 +111,8 @@ def lagre_transkripsjon_i_db(
             modell=modell,
             kjerner=kjerner,
             fil_str_mb=fil_str_mb,
-            lengde_sekunder=lengde_sekunder
+            lengde_sekunder=lengde_sekunder,
+            telefon_slutt_temp=slutt_temp  # NY LINJE
         )
         db.add(ny_post)
         db.commit()
@@ -206,8 +205,13 @@ async def start_ai_server(jobb_id: str, modell: str, kjerner: int):
 
 
 async def hent_og_logg_telemetri():
-    """Henter temperaturer/batteri via SSH, logger til fil, og returnerer prosent (int)."""
-    ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "scripts/telemetri.sh"]
+    """
+    Henter temperaturer og batteri fra OnePlus via SSH.
+    Delegerer lagringen til databasen.
+    """
+    global er_i_ladefase
+
+    ssh_cmd = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "~/scripts/telemetri.sh"]
     proc = await asyncio.create_subprocess_exec(*ssh_cmd, stdout=asyncio.subprocess.PIPE,
                                                 stderr=asyncio.subprocess.PIPE)
     stdout, _ = await proc.communicate()
@@ -217,11 +221,15 @@ async def hent_og_logg_telemetri():
         data = output.split(",")
         if len(data) == 4 and data[0].isdigit():
             prosent = int(data[0])
-            tid_na = time.strftime("%Y-%m-%d %H:%M:%S")
-            logg_linje = f"[{tid_na}] Batteri: {prosent}% ({data[1]}°C) | CPU-snitt: {data[2]}°C | GPU-snitt: {data[3]}°C\n"
+            fase_tekst = "Lader" if er_i_ladefase else "Tømmer"
 
-            with open("telemetri.log", "a") as logg_fil:
-                logg_fil.write(logg_linje)
+            lagre_telemetri_i_db(
+                batteri_prosent=prosent,
+                fase=fase_tekst,
+                bat_temp=float(data[1]),
+                cpu_temp=float(data[2]),
+                pmic_temp=float(data[3])
+            )
 
             return prosent
     return None
@@ -229,13 +237,53 @@ async def hent_og_logg_telemetri():
 
 
 
+def lagre_telemetri_i_db(
+    batteri_prosent: int,
+    fase: str,
+    bat_temp: float,
+    cpu_temp: float,
+    pmic_temp: float
+):
+    """
+    Oppretter en ny databasetilkobling, lagrer telemetridata,
+    og lukker tilkoblingen trygt uansett utfall.
+    """
+    db = SessionLocal()
+    try:
+        ny_telemetri = Telemetri(
+            batteri_prosent=batteri_prosent,
+            fase=fase,
+            telefon_bat_temp=bat_temp,
+            telefon_cpu_temp=cpu_temp,
+            telefon_pmic_temp=pmic_temp
+        )
+        db.add(ny_telemetri)
+        db.commit()
+    finally:
+        db.close()
+
+
+
+
 
 async def styr_lading(prosent: int):
-    """Kutter eller starter strømmen til telefonen basert på batteriprosent og serverstatus."""
-    if prosent >= 70 and not er_server_opptatt():
-        await asyncio.create_subprocess_exec("./scripts/stopp-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
+    """
+    Kutter eller starter strømmen til telefonen basert på batteriprosent og ladefase.
+    """
+    global er_i_ladefase
+
+    if prosent >= 70:
+        er_i_ladefase = False
+        if not er_server_opptatt():
+            await asyncio.create_subprocess_exec("./scripts/stopp-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
+
     elif prosent <= 30:
+        er_i_ladefase = True
         await asyncio.create_subprocess_exec("./scripts/start-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
+
+    else:
+        if not er_i_ladefase and not er_server_opptatt():
+            await asyncio.create_subprocess_exec("./scripts/stopp-oneplus.sh", stdout=asyncio.subprocess.DEVNULL)
 
 
 
@@ -292,6 +340,12 @@ async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, language: str):
 
 async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str, language: str, modell: str,
                                    kjerner: int, fil_str_mb: float):
+    """
+        Håndterer hele transkripsjonsflyten asynkront: sikrer telefontilkobling,
+        starter AI-serveren, konverterer lydfilen, og sender den til Whisper.
+        Henter deretter CPU-temperatur og lagrer resultatet i databasen før opprydding.
+    """
+
     global siste_jobb_tid
     temp_ut_sti = temp_inn_sti + ".wav"
 
@@ -308,9 +362,24 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
 
             if response.status_code == 200:
                 transkribert_tekst = response.json().get("text", "")
-                lagre_transkripsjon_i_db(filnavn, language, transkribert_tekst, brukt_tid, modell, kjerner, fil_str_mb,
-                                         lengde_sekunder)
+                slutt_temp = 0.0
+
+                try:
+                    ssh_temp = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "~/scripts/telemetri.sh"]
+                    proc_temp = await asyncio.create_subprocess_exec(*ssh_temp, stdout=asyncio.subprocess.PIPE)
+                    out_temp, _ = await proc_temp.communicate()
+                    # output er f.eks "68,31.5,45.2,33.1". Vi vil ha indeks 2 (CPU).
+                    slutt_temp = float(out_temp.decode().strip().split(",")[2])
+
+                except Exception:
+                    pass
+
+                lagre_transkripsjon_i_db(
+                    filnavn, language, transkribert_tekst, brukt_tid,
+                    modell, kjerner, fil_str_mb, lengde_sekunder, slutt_temp
+                )
                 jobber[jobb_id] = {"status": "ferdig", "tekst": transkribert_tekst, "tid_brukt": brukt_tid}
+
             else:
                 jobber[jobb_id] = {"status": "feil", "melding": f"AI-server svarte med kode {response.status_code}"}
 
