@@ -37,6 +37,9 @@ class Transkripsjon(Base):
     kjerner = Column(Integer, nullable=False)
     tekst = Column(Text)
     tid_brukt_sek = Column(Float)
+    telefon_slutt_temp = Column(Float, nullable=True)
+    total_tid_sek = Column(Float, nullable=True)
+
 
 
 class Telemetri(Base):

@@ -99,7 +99,8 @@ def lagre_transkripsjon_i_db(
         kjerner: int,
         fil_str_mb: float,
         lengde_sekunder: float,
-        slutt_temp: float  # NY PARAMETER
+        slutt_temp: float,
+        total_tid: float
 ):
     db = SessionLocal()
     try:
@@ -112,7 +113,8 @@ def lagre_transkripsjon_i_db(
             kjerner=kjerner,
             fil_str_mb=fil_str_mb,
             lengde_sekunder=lengde_sekunder,
-            telefon_slutt_temp=slutt_temp  # NY LINJE
+            telefon_slutt_temp=slutt_temp,
+            total_tid_sek = total_tid
         )
         db.add(ny_post)
         db.commit()
@@ -349,6 +351,8 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
     global siste_jobb_tid
     temp_ut_sti = temp_inn_sti + ".wav"
 
+    start_total_tid = time.time()
+
     try:
         async with telefon_lock:
             await sikre_telefontilkobling(jobb_id)
@@ -363,12 +367,13 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
             if response.status_code == 200:
                 transkribert_tekst = response.json().get("text", "")
                 slutt_temp = 0.0
+                slutt_total_tid = time.time()
+                total_tid = round(slutt_total_tid - start_total_tid, 2)
 
                 try:
                     ssh_temp = ["ssh", "-o", "ConnectTimeout=5", "oneplus", "~/scripts/telemetri.sh"]
                     proc_temp = await asyncio.create_subprocess_exec(*ssh_temp, stdout=asyncio.subprocess.PIPE)
                     out_temp, _ = await proc_temp.communicate()
-                    # output er f.eks "68,31.5,45.2,33.1". Vi vil ha indeks 2 (CPU).
                     slutt_temp = float(out_temp.decode().strip().split(",")[2])
 
                 except Exception:
@@ -376,7 +381,7 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
 
                 lagre_transkripsjon_i_db(
                     filnavn, language, transkribert_tekst, brukt_tid,
-                    modell, kjerner, fil_str_mb, lengde_sekunder, slutt_temp
+                    modell, kjerner, fil_str_mb, lengde_sekunder, slutt_temp, total_tid
                 )
                 jobber[jobb_id] = {"status": "ferdig", "tekst": transkribert_tekst, "tid_brukt": brukt_tid}
 
