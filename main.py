@@ -93,8 +93,12 @@ async def motta_lydfil(
             detail="Serveren jobber med en annen fil akkurat nå. Vennligst vent litt og prøv igjen."
         )
 
-    if not (file.content_type.startswith("audio/") or file.content_type.startswith("video/")):
-        raise HTTPException(status_code=400, detail=f"Ugyldig filtype: {file.content_type}")
+    gyldige_endelser = ('.weba', '.webm', '.mp3', '.wav', '.m4a', '.mp4', '.ogg', '.flac')
+    er_gyldig_mime = file.content_type.startswith("audio/") or file.content_type.startswith("video/")
+    er_gyldig_endelse = file.filename.lower().endswith(gyldige_endelser)
+
+    if not (er_gyldig_mime or er_gyldig_endelse):
+        raise HTTPException(status_code=400, detail=f"Ugyldig filtype: {file.content_type} / {file.filename}")
 
     innhold = await file.read()
     if len(innhold) > MAX_FILESIZE:

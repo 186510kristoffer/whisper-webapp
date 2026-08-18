@@ -189,10 +189,14 @@ filSkjema.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (!TILLATTE_TYPER.includes(fil.type) && !fil.type.startsWith("audio/") && !fil.type.startsWith("video/")) {
-        statusDiv.innerText = "Feil: Ugyldig filtype. Vennligst velg en godkjent lyd- eller videofil.";
+
+    //fil validering
+    const gyldigeEndelser = ['.weba', '.webm', '.mp3', '.wav', '.m4a', '.mp4', '.ogg', '.flac'];
+    const harGyldigEndelse = gyldigeEndelser.some(endelse => fil.name.toLowerCase().endsWith(endelse));
+    if (!TILLATTE_TYPER.includes(fil.type) && !fil.type.startsWith("audio/") && !fil.type.startsWith("video/") && !harGyldigEndelse) {
+        statusDiv.innerText = `Feil: Ugyldig filtype (${fil.type}). Vennligst velg en godkjent fil.`;
         return;
-    } // <-- Her var feilen! Denne manglet.
+    }
 
     settLasterTilstand(true);
     startStoppeklokke();
