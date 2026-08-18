@@ -164,7 +164,7 @@ stoppBtn.addEventListener('click', () => {
 });
 
 // Knapp for å sende inn lyden etter å ha hørt på den
-endOpptakBtn.addEventListener('click', async () => {
+sendOpptakBtn.addEventListener('click', async () => {
     const blobÅSende = midlertidigLydBlob;
     tilbakestillOpptakUI();
 
