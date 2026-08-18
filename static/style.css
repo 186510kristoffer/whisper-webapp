@@ -127,3 +127,84 @@ innstillinger-rad {
     display: inline-block;
     margin-top: 5px;
 }
+
+/* --- SPESIFIKT FOR HISTORIKK-SIDEN --- */
+
+.historikk-main-container {
+    max-width: 1100px; /* Gir historikken mye mer pusterom */
+}
+
+#historikk-kort-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    margin-top: 15px;
+}
+
+.historikk-kort {
+    background: #fff;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.historikk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+}
+
+.historikk-tittel {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #2c3e50;
+    word-break: break-all;
+}
+
+.historikk-dato {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    min-width: 140px;
+    text-align: right;
+}
+
+.historikk-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 15px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.meta-felt {
+    display: flex;
+    flex-direction: column;
+}
+
+.meta-label {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    color: #7f8c8d;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.meta-verdi {
+    font-size: 1.05em;
+    color: #2c3e50;
+}
+
+.transkripsjon-tekst {
+    background: #ecf0f1;
+    padding: 15px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    color: #333;
+    line-height: 1.6;
+}

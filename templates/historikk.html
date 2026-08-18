@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transkripsjonshistorikk</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
-    <div class="container" style="max-width: 1100px;">
+    <div class="container historikk-main-container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>Transkripsjonshistorikk</h1>
             <a href="/" class="nav-lenke">← Tilbake til opptaker</a>
@@ -15,24 +15,10 @@
 
         <div id="laster-status">Laster inn historikk...</div>
 
-        <div class="tabell-wrapper">
-            <table id="historikkTabell" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Tidspunkt</th>
-                        <th>Filnavn</th>
-                        <th>Modell / Kjerner</th>
-                        <th>Lydlengde</th>
-                        <th>Filstørrelse</th>
-                        <th>Tid brukt</th>
-                        <th>Tekst</th>
-                    </tr>
-                </thead>
-                <tbody id="tabellKropp"></tbody>
-            </table>
-        </div>
+        <!-- Her vil JavaScriptet bygge kortene -->
+        <div id="historikk-kort-container"></div>
     </div>
 
-    <script src="/static/historikk.js"></script>
+    <script src="/static/historikk.js?v=2"></script>
 </body>
 </html>
