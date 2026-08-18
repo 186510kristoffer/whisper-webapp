@@ -33,7 +33,7 @@ function startStoppeklokke() {
 
     tidtaker = setInterval(() => {
         const sekunderBrukt = ((Date.now() - startTidspunkt) / 1000).toFixed(1);
-        tidsbrukDiv.innerText = `AI jobber... Tid gått: ${sekunderBrukt} s`;
+        tidsbrukDiv.innerText = `Tid gått: ${sekunderBrukt} s`;
     }, 100);
 }
 
@@ -41,7 +41,7 @@ function stoppStoppeklokke(endeligTidFraBackend) {
     clearInterval(tidtaker);
     const totalFrontendTid = ((Date.now() - startTidspunkt) / 1000).toFixed(1);
     tidsbrukDiv.classList.add('ferdig');
-    tidsbrukDiv.innerText = `Ferdig. Tid brukt (backend): ${endeligTidFraBackend} s\n Tid brukt (frontend): ${totalFrontendTid} s`;
+    tidsbrukDiv.innerText = `Ferdig. Whisper AI brukte: ${endeligTidFraBackend} s\n Tid brukt totalt: ${totalFrontendTid} s`;
 }
 
 
@@ -74,7 +74,7 @@ startBtn.addEventListener('click', async () => {
         mediaRecorder.start();
         settLasterTilstand(true); // Lås alt unntatt stoppknappen
         stoppBtn.disabled = false;
-        statusDiv.innerText = "Tar opp... Snakk i mikrofonen!";
+        statusDiv.innerText = "Tar opp, snakk i mikrofonen";
         resultatDiv.innerText = "";
         tidsbrukDiv.style.display = 'none'; // Skjul klokken mens vi tar opp
     } catch (err) {
@@ -97,7 +97,7 @@ filSkjema.addEventListener('submit', async (e) => {
 
     // 1. Validering av filstørrelse
     if (fil.size > MAX_FILESIZE) {
-        statusDiv.innerText = "Feil: Filen er for stor! Maks 50 MB tillatt.";
+        statusDiv.innerText = "Feil: Filen er for stor, maks 50 MB tillatt.";
         return; // Stopper prosessen umiddelbart
     }
 
@@ -158,7 +158,7 @@ async function sjekkJobbStatus(jobId) {
         if (data.status === "ferdig") {
             stoppStoppeklokke(data.tid_brukt);
             settLasterTilstand(false); // Åpne knapper igjen
-            statusDiv.innerText = "Transkribering fullført!";
+            statusDiv.innerText = "Transkribering fullført";
             resultatDiv.innerText = data.tekst.replace(/\n/g, ' ');
         } else if (data.status === "feil") {
             clearInterval(tidtaker);

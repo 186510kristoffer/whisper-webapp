@@ -18,14 +18,6 @@
             <div id="status-indicator" title="Sjekker status..."></div>
         </div>
 
-        <!-- Opptaksknapper -->
-        <div class="section">
-            <p>Spill inn lyd direkte fra mikrofonen din:</p>
-            <button id="startOpptak">Start opptak</button>
-            <button id="stoppOpptak" class="stop" disabled> Stopp & Transkriber</button>
-        </div>
-
-
         <div class="section innstillinger-rad">
             <!-- Språkvalg -->
             <div>
@@ -54,7 +46,7 @@
             <p></p>
             <!-- Valg av Kjerner -->
             <div>
-                <label for="kjernerValg"><b>Kjerner:</b></label>
+                <label for="kjernerValg"><b>Velg antall CPU kjerner:</b></label>
                 <select id="kjernerValg">
                     <option value="1">1</option>
                     <option value="2" selected>2 (best)</option>
@@ -63,10 +55,18 @@
                     <option value="5" >5</option>
                     <option value="6">6</option>
                     <option value="7">7</option>
-                    <option value="8">8</option>
+                    <option value="8">8 (alle) </option>
                 </select>
             </div>
         </div>
+
+        <!-- Opptaksknapper -->
+        <div class="section">
+            <p>Spill inn lyd direkte fra mikrofonen din:</p>
+            <button id="startOpptak">Start opptak</button>
+            <button id="stoppOpptak" class="stop" disabled> Stopp & Transkriber</button>
+        </div>
+
 
         <hr>
 
@@ -88,6 +88,6 @@
     </div>
 
     <!-- Kobler til JavaScript-filen -->
-    <script src="/static/script.js?=v5"></script>
+    <script src="/static/script.js?=v6"></script>
 </body>
 </html>
