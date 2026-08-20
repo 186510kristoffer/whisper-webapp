@@ -82,7 +82,7 @@ async def sjekk_status():
 async def motta_lydfil(
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
-        tekst_spraaak: str = Form("no"),
+        tekst_spraak: str = Form("no"),
         modell: str = Form("base"),
         kjerner: int = Form(4),
         lyd_spraak: str = Form("norsk")
@@ -111,7 +111,7 @@ async def motta_lydfil(
     fil_str_mb = round(len(innhold) / (1024 * 1024), 2)
 
     jobb_id = forbered_og_start_jobb(
-        innhold, file.filename, tekst_spraaak, modell, kjerner, fil_str_mb, lyd_spraak, background_tasks)
+        innhold, file.filename, tekst_spraak, modell, kjerner, fil_str_mb, lyd_spraak, background_tasks)
 
     return {"job_id": jobb_id, "status": "jobber"}
 

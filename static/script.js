@@ -12,6 +12,7 @@ const filInput = document.getElementById('lydFil');
 const spraakValg = document.getElementById('spraakValg');
 const sendFilBtn = document.querySelector('#filSkjema button[type="submit"]');
 const tidsbrukDiv = document.getElementById('tidsbruk');
+const tekstSpraakElement = document.getElementById('tekstSpraak');
 
 const MAX_FILESIZE = 50 * 1024 * 1024;
 const TILLATTE_TYPER = ["audio/mpeg", "audio/wav", "audio/mp3", "audio/ogg", "audio/x-m4a", "video/mp4", "audio/webm"];
@@ -20,7 +21,7 @@ function settLasterTilstand(laster) {
     startBtn.disabled = laster;
     filInput.disabled = laster;
     sendFilBtn.disabled = laster;
-    spraakValg.disabled = laster;
+    tekstSpraakElement.disabled = laster; // Oppdatert variabelnavn!
 }
 
 function startStoppeklokke() {
