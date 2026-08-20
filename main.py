@@ -67,6 +67,9 @@ async def sjekk_status():
     Pinger whisper-serveren på telefonen for å se om den er våken.
     Returnerer "online" hvis den svarer, ellers "offline".
     """
+    if er_server_opptatt():
+        return {"status": "opptatt"}
+
     er_online = await sjekk_server_status()
     if er_online:
         return {"status": "online"}
@@ -79,9 +82,10 @@ async def sjekk_status():
 async def motta_lydfil(
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
-        language: str = Form("no"),
+        tekst_spraaak: str = Form("no"),
         modell: str = Form("base"),
-        kjerner: int = Form(4)
+        kjerner: int = Form(4),
+        lyd_spraak: str = Form("norsk")
 ):
     """
     Validerer innkommende HTTP-forespørsel (størrelse/type),
@@ -107,7 +111,7 @@ async def motta_lydfil(
     fil_str_mb = round(len(innhold) / (1024 * 1024), 2)
 
     jobb_id = forbered_og_start_jobb(
-        innhold, file.filename, language, modell, kjerner, fil_str_mb, background_tasks)
+        innhold, file.filename, tekst_spraaak, modell, kjerner, fil_str_mb, lyd_spraak, background_tasks)
 
     return {"job_id": jobb_id, "status": "jobber"}
 

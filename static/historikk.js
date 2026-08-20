@@ -55,7 +55,9 @@ async function lastHistorikk() {
 
         data.forEach(rad => {
             const tr = document.createElement("tr");
-
+            const kildeSpraak = transkripsjon.lyd_sprak ? transkripsjon.lyd_sprak : "norsk";
+            const utdataSpraak = transkripsjon.sprak;
+            const spraakTekst = `${kildeSpraak} -> ${utdataSpraak}`;
             const harLangTekst = rad.tekst && rad.tekst.length > 80;
             const kortTekst = harLangTekst ? rad.tekst.substring(0, 80) + "..." : (rad.tekst || "-");
 
@@ -74,6 +76,7 @@ async function lastHistorikk() {
                 <td style="white-space: nowrap;">${formaterDato(rad.tidspunkt)}</td>
                 <td><b>${rad.filnavn || "-"}</b></td>
                 <td style="white-space: nowrap;">${rad.modell || "-"} (${rad.kjerner || "-"} k.)</td>
+                <td style="white-space: nowrap;">${spraakTekst}</td>
                 <td style="white-space: nowrap;">${formaterSekunder(rad.lengde_sekunder)}</td>
                 <td style="white-space: nowrap;">${rad.fil_str_mb ? rad.fil_str_mb + " MB" : "-"}</td>
                 <td style="white-space: nowrap;">${formaterSekunder(rad.tid_brukt_sek)}</td>

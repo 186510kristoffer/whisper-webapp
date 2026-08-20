@@ -215,19 +215,25 @@ async function sendTilBackend(filData, filNavn) {
     const modellVerdi = modellSlider.value;
     const faktiskModell = modellNavn[modellVerdi];
     const kjernerVerdi = kjernerSlider.value;
-
+    const tekstSpraak = document.getElementById('tekstSpraak').value;
     const lydSpraak = document.querySelector('input[name="lydSpraak"]:checked').value;
 
     formData.append('modell', faktiskModell);
     formData.append('kjerner', kjernerVerdi);
     formData.append('file', filData, filNavn);
-    formData.append('language', spraakValg.value);
+    formData.append('tekst_spraak', tekstSpraak);
+    formData.append('lyd_spraak', lydSpraak);
 
     try {
         const response = await fetch('/transkriber', {
             method: 'POST',
             body: formData
         });
+
+        if (response.status === 429) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail);
+        }
 
         if (!response.ok) throw new Error("Serverfeil ved opplasting");
 
@@ -238,8 +244,8 @@ async function sendTilBackend(filData, filNavn) {
     } catch (err) {
         clearInterval(tidtaker);
         settLasterTilstand(false);
-        statusDiv.innerText = "Nettverksfeil eller avvist av server.";
-        resultatDiv.innerText = String(err);
+        statusDiv.innerText = "Transkribering avbrutt:";
+        resultatDiv.innerText = err.message;
     }
 }
 
@@ -275,17 +281,22 @@ async function sjekkJobbStatus(jobId) {
     }
 }
 
-// 5. Oppdater den status symbolet
+// 5. Oppdater status symbolet
 async function sjekkServerStatus(){
     try{
         let res= await fetch('/status');
         let data = await res.json();
         let prikk = document.getElementById('status-indicator');
 
-        if (data.status === 'online'){
+        if (data.status === 'opptatt') {
+            prikk.style.backgroundColor = 'yellow';
+            prikk.title = 'AI-serveren jobber med en fil';
+        }
+        else if (data.status === 'online'){
             prikk.style.backgroundColor = 'green';
             prikk.title = 'AI-serveren er Online';
-        } else {
+        }
+        else {
             prikk.style.backgroundColor = 'red';
             prikk.title = 'Ingen kontakt med AI-server';
         }

@@ -34,6 +34,7 @@ class Transkripsjon(Base):
     fil_str_mb = Column(Float, nullable=True)
     modell = Column(String, nullable=False)
     sprak = Column(String(10))
+    lyd_sprak = Column(String(20), default="no")
     kjerner = Column(Integer, nullable=False)
     tekst = Column(Text)
     tid_brukt_sek = Column(Float)

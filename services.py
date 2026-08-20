@@ -46,10 +46,11 @@ async def sjekk_server_status() -> bool:
 def forbered_og_start_jobb(
     innhold: bytes,
     filnavn: str,
-    language: str,
+    tekst_spraak: str,
     modell: str,
     kjerner: int,
     fil_str_mb: float,
+    lyd_spraak,
     background_tasks: BackgroundTasks
 ) -> str:
     """
@@ -69,10 +70,11 @@ def forbered_og_start_jobb(
         jobb_id,
         temp_inn_sti,
         filnavn,
-        language,
+        tekst_spraak,
         modell,
         kjerner,
-        fil_str_mb
+        fil_str_mb,
+        lyd_spraak
     )
     return jobb_id
 
@@ -92,7 +94,8 @@ def hent_jobb(jobb_id: str) -> dict:
 
 def lagre_transkripsjon_i_db(
         filnavn: str,
-        sprak: str,
+        tekst_spraak: str,
+        lyd_spraak: str,
         tekst: str,
         brukt_tid: float,
         modell: str,
@@ -106,7 +109,8 @@ def lagre_transkripsjon_i_db(
     try:
         ny_post = Transkripsjon(
             filnavn=filnavn,
-            sprak=sprak,
+            sprak=tekst_spraak,
+            lyd_sprak=lyd_spraak,
             tekst=tekst,
             tid_brukt_sek=brukt_tid,
             modell=modell,
@@ -160,7 +164,7 @@ async def avslutt_server_etter_inaktivitet():
 async def sikre_telefontilkobling(jobb_id: str = None):
     """Kjører oppstartsskriptet for å sikre at USB-nettverket er aktivt."""
     if jobb_id and jobb_id in jobber:
-        jobber[jobb_id]["melding"] = "Sjekker strøm og vekker telefonen..."
+        jobber[jobb_id]["melding"] = "Sjekker strøm og vekker telefonen"
 
     proc = await asyncio.create_subprocess_exec(
         "./scripts/start-oneplus.sh", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -172,16 +176,21 @@ async def sikre_telefontilkobling(jobb_id: str = None):
 
 
 
-async def start_ai_server(jobb_id: str, modell: str, kjerner: int):
-    """Starter Whisper-serveren via SSH hvis riktig modell ikke allerede kjører."""
+async def start_ai_server(jobb_id: str, modell: str, kjerner: int, lyd_spraak: str):
+    """
+    Starter Whisper-serveren via SSH hvis riktig modell ikke allerede kjører.
+    """
     global aktiv_ssh_prosess, gjeldende_modell
 
-    if await sjekk_server_status() and gjeldende_modell == modell:
-        jobber[jobb_id]["melding"] = f"AI-modellen ({modell}) kjører allerede. Sender filen!"
+    prefix = "en" if lyd_spraak == "engelsk" else "nb"
+    modell_filnavn = f"{prefix}-{modell}-q5_0.bin"
+
+    if await sjekk_server_status() and gjeldende_modell == modell_filnavn:
+        jobber[jobb_id]["melding"] = f"AI-modellen ({modell_filnavn}) kjører allerede. Sender filen"
         return
 
-    jobber[jobb_id]["melding"] = f"Starter AI-server (Modell: {modell}, Kjerner: {kjerner})..."
-    modell_sti = f"/data/whisper.cpp/models/nb-{modell}-q5_0.bin"
+    jobber[jobb_id]["melding"] = f"Starter AI-server (Modell: {modell_filnavn}, Kjerner: {kjerner})"
+    modell_sti = f"/data/whisper.cpp/models/{modell_filnavn}"
 
     proc_pkill = await asyncio.create_subprocess_exec("ssh", "-o", "ConnectTimeout=5", "oneplus",
                                                       "pkill whisper-server")
@@ -193,11 +202,11 @@ async def start_ai_server(jobb_id: str, modell: str, kjerner: int):
         f"cd /data/whisper.cpp && ./build/bin/whisper-server -m {modell_sti} -t {kjerner} --host 0.0.0.0 --port 8080 > server.log 2>&1"
     ]
     aktiv_ssh_prosess = await asyncio.create_subprocess_exec(*ssh_start)
-    jobber[jobb_id]["melding"] = f"Laster AI-modellen ({modell}) inn i RAM..."
+    jobber[jobb_id]["melding"] = f"Laster AI-modellen ({modell_filnavn}) inn i RAM"
 
     for _ in range(40):
         if await sjekk_server_status():
-            gjeldende_modell = modell
+            gjeldende_modell = modell_filnavn
             break
         await asyncio.sleep(0.5)
 
@@ -317,15 +326,17 @@ async def sjekk_og_styr_batteri():
 
 
 
-async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, language: str):
-    """Sender den ferdige WAV-filen til Whisper API-et og returnerer responsen og tidsbruken."""
+async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, tekst_spraak: str):
+    """
+    Sender den ferdige WAV-filen til Whisper API-et og returnerer responsen og tidsbruken.
+    """
     jobber[jobb_id] = {"status": "jobber", "melding": "Transkriberer teksten"}
 
     with open(wav_sti, "rb") as f:
         wav_data = f.read()
 
     files_payload = {'file': ("lyd.wav", wav_data, "audio/wav")}
-    data_payload = {'language': language}
+    data_payload = {'language': tekst_spraak}
 
     timeout = httpx.Timeout(3600.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -340,8 +351,8 @@ async def send_lyd_til_whisper(jobb_id: str, wav_sti: str, language: str):
 
 
 
-async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str, language: str, modell: str,
-                                   kjerner: int, fil_str_mb: float):
+async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str, tekst_spraak: str, modell: str,
+                                   kjerner: int, fil_str_mb: float, lyd_spraak: str):
     """
         Håndterer hele transkripsjonsflyten asynkront: sikrer telefontilkobling,
         starter AI-serveren, konverterer lydfilen, og sender den til Whisper.
@@ -356,13 +367,13 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
     try:
         async with telefon_lock:
             await sikre_telefontilkobling(jobb_id)
-            await start_ai_server(jobb_id, modell, kjerner)
+            await start_ai_server(jobb_id, modell, kjerner, lyd_spraak)
 
             jobber[jobb_id]["melding"] = "Konverterer lydfilen for whisper"
             lengde_sekunder = round(hent_lydlengde_sekunder(temp_inn_sti), 2)
             konverter_til_wav(temp_inn_sti, temp_ut_sti)
 
-            response, brukt_tid = await send_lyd_til_whisper(jobb_id, temp_ut_sti, language)
+            response, brukt_tid = await send_lyd_til_whisper(jobb_id, temp_ut_sti, tekst_spraak, lyd_spraak)
 
             if response.status_code == 200:
                 transkribert_tekst = response.json().get("text", "")
@@ -380,7 +391,7 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
                     pass
 
                 lagre_transkripsjon_i_db(
-                    filnavn, language, transkribert_tekst, brukt_tid,
+                    filnavn, tekst_spraak, lyd_spraak, transkribert_tekst, brukt_tid,
                     modell, kjerner, fil_str_mb, lengde_sekunder, slutt_temp, total_tid
                 )
                 jobber[jobb_id] = {"status": "ferdig", "tekst": transkribert_tekst, "tid_brukt": brukt_tid}
