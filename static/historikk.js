@@ -55,8 +55,8 @@ async function lastHistorikk() {
 
         data.forEach(rad => {
             const tr = document.createElement("tr");
-            const kildeSpraak = transkripsjon.lyd_sprak ? transkripsjon.lyd_sprak : "norsk";
-            const utdataSpraak = transkripsjon.sprak;
+            const kildeSpraak = rad.lyd_sprak ? rad.lyd_sprak : "norsk";
+            const utdataSpraak = rad.sprak;
             const spraakTekst = `${kildeSpraak} -> ${utdataSpraak}`;
             const harLangTekst = rad.tekst && rad.tekst.length > 80;
             const kortTekst = harLangTekst ? rad.tekst.substring(0, 80) + "..." : (rad.tekst || "-");
