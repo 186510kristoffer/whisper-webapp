@@ -373,7 +373,7 @@ async def prosesser_lyd_i_bakgrunn(jobb_id: str, temp_inn_sti: str, filnavn: str
             lengde_sekunder = round(hent_lydlengde_sekunder(temp_inn_sti), 2)
             konverter_til_wav(temp_inn_sti, temp_ut_sti)
 
-            response, brukt_tid = await send_lyd_til_whisper(jobb_id, temp_ut_sti, tekst_spraak, lyd_spraak)
+            response, brukt_tid = await send_lyd_til_whisper(jobb_id, temp_ut_sti, tekst_spraak)
 
             if response.status_code == 200:
                 transkribert_tekst = response.json().get("text", "")
